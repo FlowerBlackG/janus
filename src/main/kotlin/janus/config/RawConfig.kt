@@ -7,7 +7,14 @@ data class RawConfig(
     val flags: MutableSet<String>,
     val values: MutableMap<String, String>,
     val paimons: MutableList<String>
-)
+) {
+    companion object {
+        fun load(args: Array<String>): RawConfig {
+            return loadRawConfig(args)
+        }
+    }
+}
+
 
 private fun parseCliVars(args: Array<String>, container: RawConfig) {
     container.flags.clear()

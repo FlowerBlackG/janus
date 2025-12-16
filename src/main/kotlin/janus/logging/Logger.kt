@@ -23,49 +23,50 @@ class Logger private constructor() {
                 throw UnsupportedOperationException("Logger is a singleton")
             }
 
-        fun info(msg: String, delim: String = "\n") {
-            instance?.info(msg, delim)
+        fun info(msg: String, delim: String = "\n", trace: Throwable? = null) {
+            instance?.info(msg, delim, trace)
         }
 
-        fun error(msg: String, delim: String = "\n") {
-            instance?.error(msg, delim)
+        fun error(msg: String, delim: String = "\n", trace: Throwable? = null) {
+            instance?.error(msg, delim, trace)
         }
 
-        fun warn(msg: String, delim: String = "\n") {
-            instance?.warn(msg, delim)
+        fun warn(msg: String, delim: String = "\n", trace: Throwable? = null) {
+            instance?.warn(msg, delim, trace)
         }
 
-        fun success(msg: String, delim: String = "\n") {
-            instance?.success(msg, delim)
+        fun success(msg: String, delim: String = "\n", trace: Throwable? = null) {
+            instance?.success(msg, delim, trace)
         }
 
-        fun debug(msg: String, delim: String = "\n") {
-            instance?.debug(msg, delim)
+        fun debug(msg: String, delim: String = "\n", trace: Throwable? = null) {
+            instance?.debug(msg, delim, trace)
         }
     }
 
 
-    fun log(msg: String, delim: String = "\n") {
+    fun log(msg: String, delim: String = "\n", trace: Throwable? = null) {
         print("${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))} $msg$delim")
+        trace?.printStackTrace()
     }
 
-    fun info(msg: String, delim: String = "\n") {
-        this.log("[INFO ] ${msg}", delim)
+    fun info(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        this.log("[INFO ] ${msg}", delim, trace)
     }
 
-    fun error(msg: String, delim: String = "\n") {
-        this.log("\u001B[31m[ERROR]\u001B[0m ${msg}", delim)
+    fun error(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        this.log("\u001B[31m[ERROR]\u001B[0m ${msg}", delim, trace)
     }
 
-    fun warn(msg: String, delim: String = "\n") {
-        this.log("\u001B[33m[WARN ]\u001B[0m ${msg}", delim)
+    fun warn(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        this.log("\u001B[33m[WARN ]\u001B[0m ${msg}", delim, trace)
     }
 
-    fun success(msg: String, delim: String = "\n") {
-        this.log("\u001B[32m[SUCCESS]\u001B[0m ${msg}", delim)
+    fun success(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        this.log("\u001B[32m[SUCCESS]\u001B[0m ${msg}", delim, trace)
     }
 
-    fun debug(msg: String, delim: String = "\n") {
-        this.log("\u001B[34m[DEBUG]\u001B[0m ${msg}", delim)
+    fun debug(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        this.log("\u001B[34m[DEBUG]\u001B[0m ${msg}", delim, trace)
     }
 }

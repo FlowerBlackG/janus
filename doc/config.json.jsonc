@@ -1,0 +1,61 @@
+{
+    // "server" or "client"
+    "mode": "",
+    // listen port or connect port
+    "port": 3000,  
+
+    // unused for server currently. used for client to specify server
+    // optional for server.
+    "ip": "127.0.0.1",
+
+    // optional. bash glob format.
+    "ignore": {
+       "folder": [
+            "node_modules"
+            // ...
+        ],
+        "file": [
+            "*.log"
+            // ...
+        ]
+    },
+
+    // client only. optional. "remove" or "keep" or "panic". defaults to "keep".
+    "dangling": "",
+
+    // each "workspace" is a folder.
+    // if only one workspace configured, it will be selected by default.
+    "workspaces": [
+        {
+            // specifier. need to be unique.
+            "name": "project",
+            // "server" or "client"
+            "role": "",
+            // for client and server, this value can be different, but points to same folder that wants to mirror.
+            "path": "~/gty/project",
+            // optional, but highly recommended. AES key for authentication.
+            "secret": {
+                "type": "",   // "string" or "base64" or "file-string" or "file-base64"
+                "value": ""
+            },
+
+            // configure on client side.
+            "ignore": {
+                // if true, this ignore overrides parent. else, merge. defaults to true.
+                "override": true,
+                "folder": [
+                    "node_modules"
+                    // ...
+                ],
+                "file": [
+                    "*.log"
+                    // ...
+                ]
+            },
+
+            // optional. client only. if set, override parent.
+            "dangling": ""
+        }
+        // ... and more.
+    ]
+}

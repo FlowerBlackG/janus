@@ -8,6 +8,16 @@ Specify run mode. Have higher priority than config.json.
 
 If not found in both commandline and config.json, Janus will quit.
 
+### --ip [value] / --host [value]
+
+Must have for running in client mode.
+
+Value is a string, like: 192.168.1.3
+
+### --port [value]
+
+Must have for running in client mode.
+
 ### --version
 
 Show Janus version and exit.
@@ -21,6 +31,10 @@ Show usage and exit.
 Config in json.
 
 See config.json.jsonc for usage.
+
+### --workspace [value]
+
+Select which workspace to sync. Workspaces should be configured in config.json.jsonc, or configured temporarily by commandline.
 
 ### --path [value]
 
@@ -49,20 +63,6 @@ Specify a port to listen. If not set, port is selected automatically.
 ---
 
 ## Janus Client
-
-### --server-ip [value]
-
-Must have for running in client mode.
-
-Value is a string, like: 192.168.1.3
-
-### --server-port [value]
-
-Must have for running in client mode.
-
-### --workspace [value]
-
-Select which workspace to sync. Workspaces should be configured in config.json.jsonc, or configured temporarily by commandline.
 
 ### --dangling [value]
 

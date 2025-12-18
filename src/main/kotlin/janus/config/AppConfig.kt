@@ -3,6 +3,7 @@
 package io.github.flowerblackg.janus.config
 
 import io.github.flowerblackg.janus.logging.Logger
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -12,19 +13,23 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
+import java.io.File
+import kotlin.io.encoding.Base64
 
 // --- Data Classes ---
 
 @Serializable
 data class AppConfig(
     val mode: ConnectionMode,
-    val port: Int,
-    val ip: String? = null,
+    val port: Int? = null,
+    val host: String? = null,
     val ignore: IgnoreConfig? = null,
     val dangling: DanglingPolicy? = null,
+    val secret: SecretConfig? = null,
     val workspaces: List<WorkspaceConfig> = emptyList()
 ) {
     companion object {
+        @ExperimentalSerializationApi
         private var jsonSerializer: Json? = null
             get() {
                 if (field != null)
@@ -35,6 +40,8 @@ data class AppConfig(
                     encodeDefaults = true
                     explicitNulls = false
                     coerceInputValues = true
+                    allowComments = true
+                    allowTrailingComma = true
                 }
 
                 return field
@@ -45,7 +52,7 @@ data class AppConfig(
             try {
                 return jsonSerializer!!.decodeFromString<AppConfig>(jsonString)
             } catch (e: Exception) {
-                Logger.error("Failed to parse AppConfig: ${e.message}", trace = e)
+                Logger.error("Failed to parse AppConfig: ${e.message}")
                 throw IllegalArgumentException("Failed to parse AppConfig: ${e.message}")
             }
         }
@@ -68,14 +75,66 @@ data class WorkspaceConfig(
     val path: String,
     val secret: SecretConfig? = null,
     val ignore: IgnoreConfig? = null,
-    val dangling: DanglingPolicy? = null
+    val dangling: DanglingPolicy? = null,
+    val host: String? = null,
+    val port: Int? = null,
 )
 
 @Serializable
 data class SecretConfig(
     val type: SecretType,
     val value: String
-)
+) {
+    /**
+     * @return null if something went wrong.
+     */
+    fun toCryptoConfig(): Config.CryptoConfig? {
+        val cryptoConfig = Config.CryptoConfig(enabled = value.isNotBlank())
+        if (!cryptoConfig.enabled) {
+            return cryptoConfig
+        }
+
+        if (type == SecretType.STRING) {
+            cryptoConfig.key = value.toByteArray()
+            return cryptoConfig
+        }
+
+        if (type == SecretType.BASE64) {
+            cryptoConfig.key = try {
+                Base64.decode(value)
+            } catch (e: Exception) {
+                Logger.error("Failed to decode Base64 string: ${e.message}", trace = e)
+                return null
+            }
+            return cryptoConfig
+        }
+
+        if (type == SecretType.FILE_BASE64 || type == SecretType.FILE_STRING) {
+            val fileContent = File(value).readText().trim()
+            if (fileContent.isBlank()) {
+                Logger.error("Failed to read file: $value")
+                return null
+            }
+
+            if (type == SecretType.FILE_BASE64) {
+                try {
+                    cryptoConfig.key = Base64.decode(fileContent)
+                } catch (e: Exception) {
+                    Logger.error("Failed to decode file: $value to Base64: ${e.message}", trace = e)
+                    return null
+                }
+            }
+            else { // type is FILE_STRING
+                cryptoConfig.key = fileContent.toByteArray()
+            }
+
+            return cryptoConfig
+        }
+
+        Logger.error("Unknown secret type: $type")
+        return null
+    }
+}
 
 // --- Enums with Custom Serializers ---
 

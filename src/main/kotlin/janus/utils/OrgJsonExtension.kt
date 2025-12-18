@@ -24,21 +24,15 @@ fun JSONObject.getString(key: String, defaultValue: String?) = try {
 }
 
 
-fun JSONObject.getString(key: String, defaultValue: String) = this.getString(key, defaultValue as String?)!!
-
-
 fun JSONObject.getInt(key: String, defaultValue: Int?) = try {
     this.getInt(key)
 } catch (_: Exception) {
     defaultValue
 }
 
-fun JSONObject.getInt(key: String, defaultValue: Int) = this.getInt(key, defaultValue as Int?)!!
 
 fun JSONObject.getBoolean(key: String, defaultValue: Boolean?) = try {
     this.getBoolean(key)
 } catch (_: Exception) {
     defaultValue
 }
-
-fun JSONObject.getBoolean(key: String, defaultValue: Boolean) = this.getBoolean(key, defaultValue as Boolean?)!!

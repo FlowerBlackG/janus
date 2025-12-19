@@ -17,6 +17,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-protobuf
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")
 
     // https://mvnrepository.com/artifact/org.json/json
     implementation("org.json:json:20250517")

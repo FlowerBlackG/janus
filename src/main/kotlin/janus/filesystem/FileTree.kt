@@ -14,6 +14,7 @@ import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -125,6 +126,11 @@ data class FileTree(
         }
 
         return false
+    }
+
+
+    fun encodeToByteArray(): ByteArray {
+        return ProtoBuf.encodeToByteArray(this)
     }
 }
 

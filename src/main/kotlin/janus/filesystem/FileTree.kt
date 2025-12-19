@@ -40,6 +40,7 @@ object PathSerializer : KSerializer<Path> {
 }
 
 
+@ExperimentalSerializationApi
 @Serializable
 data class FileTree(
     var type: FileType = FileType.OTHER,
@@ -47,23 +48,44 @@ data class FileTree(
     var children: MutableList<FileTree> = ArrayList(),
     @Transient
     var parent: FileTree? = null,
-    @Serializable(with = PathSerializer::class)
+
+    /**
+     * We mark this as Transient for serialization.
+     * We reconstruct the path during the 'reconstruct' phase
+     * to avoid saving redundant string data for every single node.
+     */
+    @Transient
     var path: Path = Path("")
 ) {
     companion object {
         @ExperimentalSerializationApi
-        fun from(bytes: ByteArray): FileTree? {
+        fun from(bytes: ByteArray, baseRoot: Path = Path("")): FileTree? {
             val tree = ProtoBuf.decodeFromByteArray(FileTree.serializer(), bytes)
+
+            // Reconstruct paths and parents.
+            tree.reconstruct(baseRoot, null)
 
             if (!tree.isSafe()) {
                 Logger.warn("Malicious FileTree detected: Contains illegal path references.")
                 return null
             }
 
-            tree.fixParentReferences()
             return tree
         }
     }
+
+
+    /**
+     * Internal helper to restore Transients after decompression
+     */
+    private fun reconstruct(currentPath: Path, parentNode: FileTree?) {
+        this.parent = parentNode
+        this.path = currentPath
+        for (child in children) {
+            child.reconstruct(currentPath.resolve(child.name), this)
+        }
+    }
+
 
     fun isSafe(basePath: Path = this.path): Boolean {
         return runCatching {
@@ -80,13 +102,6 @@ data class FileTree(
         }.getOrNull() ?: false
     }
 
-
-    fun fixParentReferences() {
-        for (child in children) {
-            child.parent = this
-            child.fixParentReferences()
-        }
-    }
 
     fun hasDuplicatedNamesInDirectory(recursive: Boolean = false): Boolean {
         if (type != FileType.DIRECTORY)

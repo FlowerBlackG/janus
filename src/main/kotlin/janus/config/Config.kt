@@ -9,14 +9,14 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.net.InetAddress
 import java.nio.file.Path
-import java.nio.file.Paths
-import kotlin.io.encoding.Base64
 import kotlin.io.path.Path
 
 
 data class Config(
     var runMode: ConnectionMode = ConnectionMode.SERVER,
+    /** Nonnull for server mode. */
     var port: Int? = null,
+    /** Nonnull for server mode. */
     var host: InetAddress? = null,
     val workspaces: MutableMap<Pair<ConnectionMode, String>, WorkspaceConfig> = HashMap()
 ) {

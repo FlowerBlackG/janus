@@ -92,7 +92,7 @@ fun main(args: Array<String>) {
         try {
             coroFuture.await()
         } catch (e: Exception) {
-            Logger.error("Something went wrong: ${e.message}")
+            Logger.error("Something went wrong: ${e.message}", trace = e)
             -1
         }
     }

@@ -95,49 +95,37 @@ data class SecretConfig(
             return cryptoConfig
         }
 
-        val keyBytes: ByteArray
+        var keyBytes: ByteArray? = null
 
         if (type == SecretType.STRING) {
             keyBytes = value.toByteArray()
-            return cryptoConfig
         }
-
-        if (type == SecretType.BASE64) {
-            keyBytes = try {
-                Base64.decode(value)
-            } catch (e: Exception) {
+        else if (type == SecretType.BASE64) {
+            keyBytes = runCatching { Base64.decode(value) }.exceptionOrNull()?.let { e ->
                 Logger.error("Failed to decode Base64 string: ${e.message}", trace = e)
                 return null
             }
-            return cryptoConfig
         }
-
-        if (type == SecretType.FILE_BASE64 || type == SecretType.FILE_STRING) {
+        else if (type == SecretType.FILE_BASE64 || type == SecretType.FILE_STRING) {
             val fileContent = File(value).readText().trim()
             if (fileContent.isBlank()) {
                 Logger.error("Failed to read file: $value")
                 return null
             }
 
-            if (type == SecretType.FILE_BASE64) {
-                try {
-                    keyBytes = Base64.decode(fileContent)
-                } catch (e: Exception) {
+            keyBytes = if (type == SecretType.FILE_BASE64) {
+                runCatching { Base64.decode(fileContent) }.exceptionOrNull()?.let { e ->
                     Logger.error("Failed to decode file: $value to Base64: ${e.message}", trace = e)
                     return null
                 }
+            } else { // type is FILE_STRING
+                fileContent.toByteArray()
             }
-            else { // type is FILE_STRING
-                keyBytes = fileContent.toByteArray()
-            }
+        }
 
-            var aesHelper: AesHelper? = null
-            if (keyBytes.isNotEmpty()) {
-                aesHelper = AesHelper(keyBytes = keyBytes)
-            }
 
-            cryptoConfig.aes = aesHelper
-
+        if (keyBytes?.isNotEmpty() == true) {
+            cryptoConfig.aes = AesHelper(keyBytes = keyBytes)
             return cryptoConfig
         }
 

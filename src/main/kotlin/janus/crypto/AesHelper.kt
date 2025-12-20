@@ -10,6 +10,8 @@ import kotlin.io.encoding.Base64
 /**
  * AES Helper.
  *
+ * Instances can be reused.
+ *
  * Set key by only setting at least and at most one of the following parameters:
  *  - keyBytes
  *  - keyBase64

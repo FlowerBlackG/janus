@@ -3,13 +3,13 @@
 package io.github.flowerblackg.janus.network.protocol
 
 import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.crypto.AesHelper
+import io.github.flowerblackg.janus.filesystem.FileTree
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.AsyncSocketWrapper
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.ConcurrentHashMap
+import java.nio.file.Path
 import kotlin.random.Random
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -38,6 +38,21 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
 
     suspend fun sendResponse(code: Int, msg: String) {
         return this.sendResponse(code, msg.toByteArray(StandardCharsets.UTF_8))
+    }
+
+
+    /**
+     *
+     * @param throwOnFail Whether throw when Response code is not 0.
+     */
+    suspend fun recvResponse(throwOnFail: Boolean = false, throwOnFailPrompt: String? = null): JanusMessage.CommonResponse {
+        val res = recvMessage(JanusMessage.CommonResponse.typeCode) as JanusMessage.CommonResponse
+        if (throwOnFail && !res.success) {
+            val throwMsg = throwOnFailPrompt ?: "Response code is not 0: ${res.code}. Message: ${res.msg}"
+            JanusMessage.recycle(res)
+            throw Exception(throwMsg)
+        }
+        return res
     }
 
     suspend fun recvHeader(): Pair<Int, Long>? {
@@ -200,5 +215,28 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         return ret
     }
 
-}
 
+    suspend fun fetchFileTree(root: Path? = null): FileTree {
+        val req = JanusMessage.create(JanusMessage.FetchFileTree.typeCode) as JanusMessage.FetchFileTree
+        send(req)
+        val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on fetch file tree")
+        return if (root != null) {
+            FileTree.from(res.data, root)
+        }
+        else {
+            FileTree.from(res.data)
+        } ?: throw Exception("Failed to parse file tree.")
+    }
+
+
+    suspend fun getSystemTimeMillis(): Long {
+        val req = JanusMessage.create(JanusMessage.GetSystemTimeMillis.typeCode) as JanusMessage.GetSystemTimeMillis
+        send(req)
+        val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on get system time millis")
+
+        if (res.data.size != Long.SIZE_BYTES)
+            throw Exception("Wrong data size: ${res.data.size}")
+
+        return ByteBuffer.wrap(res.data).getLong()
+    }
+}

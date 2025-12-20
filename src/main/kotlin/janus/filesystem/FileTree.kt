@@ -9,14 +9,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -32,13 +26,6 @@ enum class FileType {
     DIRECTORY,
     SYMLINK,
     OTHER
-}
-
-
-object PathSerializer : KSerializer<Path> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Path", PrimitiveKind.STRING)
-    override fun serialize(encoder: Encoder, value: Path) = encoder.encodeString(value.toString())
-    override fun deserialize(decoder: Decoder): Path = Path(decoder.decodeString())
 }
 
 

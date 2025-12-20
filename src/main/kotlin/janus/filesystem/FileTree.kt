@@ -156,19 +156,20 @@ private suspend fun globFilesInternal(
     ignoreConfig: Config.IgnoreConfig? = null
 ): FileTree? = withContext(Dispatchers.IO) {
 
-    val relativePath = root?.relativize(current.toAbsolutePath()) ?: current
-
-    // Check ignore.
-    if (ignoreConfig != null && shouldIgnore(relativePath, ignoreConfig)) {
-        return@withContext null
-    }
-
     val attrs = try {
         Files.readAttributes(current, BasicFileAttributes::class.java)
     } catch (e: Exception) {
         Logger.error("Failed to read attributes of $current: ${e.message}")
         return@withContext null
     }
+
+    val relativePath = root?.relativize(current.toAbsolutePath()) ?: current
+
+    // Check ignore.
+    if (ignoreConfig != null && shouldIgnore(relativePath, attrs.isDirectory, ignoreConfig)) {
+        return@withContext null
+    }
+
 
     val node = FileTree(
         type = when {
@@ -210,7 +211,7 @@ private suspend fun globFilesInternal(
  *
  * @author Google Gemini 3.0 Pro
  */
-private fun shouldIgnore(relativePath: Path, config: Config.IgnoreConfig): Boolean {
+private fun shouldIgnore(relativePath: Path, isDirectory: Boolean, config: Config.IgnoreConfig): Boolean {
     val fs = FileSystems.getDefault()
 
     for (line in config.lines) {
@@ -218,10 +219,14 @@ private fun shouldIgnore(relativePath: Path, config: Config.IgnoreConfig): Boole
             continue
 
         var pattern = line.trim()
+        var expectsDirectory = pattern.endsWith("/")
+
+        if (expectsDirectory && !isDirectory)
+            continue
 
         // Handle directory specific ignores (simple check)
         // If pattern ends with /, it expects a directory, but here we simply match the string prefix
-        if (pattern.endsWith("/")) {
+        if (expectsDirectory) {
              pattern = pattern.dropLast(1)
         }
 
@@ -230,7 +235,7 @@ private fun shouldIgnore(relativePath: Path, config: Config.IgnoreConfig): Boole
             // Absolute path relative to root (e.g., /build)
             pattern.startsWith("/") -> "glob:${pattern.drop(1)}"
             // Recursive match (e.g., *.class or build/)
-            else -> "glob:**/{$pattern}"
+            else -> "glob:{${pattern},**/${pattern}}"
         }
 
 

@@ -44,7 +44,6 @@ private fun printConfig(config: Config) {
 }
 
 
-@ExperimentalAtomicApi
 fun main(args: Array<String>) {
     val rawConfig = loadRawConfig(args)
     version()

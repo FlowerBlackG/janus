@@ -2,6 +2,7 @@
 
 package io.github.flowerblackg.janus.filesystem
 
+import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.logging.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -17,6 +18,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
@@ -135,25 +137,36 @@ data class FileTree(
 
 
 suspend fun Path.globFiles(): FileTree? = withContext(Dispatchers.IO) {
-    return@withContext globFilesInternal(null, this@globFiles, null)
+    return@withContext globFilesInternal(null, this@globFiles, null, null)
 }
 
 
-suspend fun Path.globFilesRelative(): FileTree? = withContext(Dispatchers.IO) {
+suspend fun Path.globFilesRelative(ignoreConfig: Config.IgnoreConfig? = null): FileTree? = withContext(Dispatchers.IO) {
     val rootPath = this@globFilesRelative.toAbsolutePath()
-    return@withContext globFilesInternal(rootPath, rootPath, null)
+    return@withContext globFilesInternal(rootPath, rootPath, null, ignoreConfig)
 }
 
 
-private suspend fun globFilesInternal(root: Path?, current: Path, parent: FileTree? = null): FileTree? = withContext(Dispatchers.IO) {
+private suspend fun globFilesInternal(
+    root: Path?,
+    current: Path,
+    parent: FileTree? = null,
+    ignoreConfig: Config.IgnoreConfig? = null
+): FileTree? = withContext(Dispatchers.IO) {
+
+    val relativePath = root?.relativize(current.toAbsolutePath()) ?: current
+
+    // Check ignore.
+    if (ignoreConfig != null && shouldIgnore(relativePath, ignoreConfig)) {
+        return@withContext null
+    }
+
     val attrs = try {
         Files.readAttributes(current, BasicFileAttributes::class.java)
     } catch (e: Exception) {
         Logger.error("Failed to read attributes of $current: ${e.message}")
         return@withContext null
     }
-
-    val relativePath = root?.relativize(current.toAbsolutePath()) ?: current
 
     val node = FileTree(
         type = when {
@@ -176,14 +189,51 @@ private suspend fun globFilesInternal(root: Path?, current: Path, parent: FileTr
         }
 
         val children = if (childPaths.size < 16) {
-            childPaths.map { globFilesInternal(root, it, node) }
+            childPaths.map { globFilesInternal(root, it, node, ignoreConfig) }
         } else {
-            childPaths.map { async { globFilesInternal(root, it, node) } }.awaitAll()
+            childPaths.map { async { globFilesInternal(root, it, node, ignoreConfig) } }.awaitAll()
         }
 
         node.children = children.filterNotNull().toMutableList()
     }
 
     return@withContext node
+}
+
+
+/**
+ * Helper to check if a relative path matches the ignore configuration.
+ * Adapts basic .gitignore syntax to Java PathMatchers.
+ *
+ * @author Google Gemini 3.0 Pro
+ */
+private fun shouldIgnore(relativePath: Path, config: Config.IgnoreConfig): Boolean {
+    val fs = FileSystems.getDefault()
+
+    for (line in config.lines) {
+        if (line.isBlank() || line.startsWith("#"))
+            continue
+
+        var pattern = line.trim()
+
+        // Handle directory specific ignores (simple check)
+        // If pattern ends with /, it expects a directory, but here we simply match the string prefix
+        if (pattern.endsWith("/")) {
+             pattern = pattern.dropLast(1)
+        }
+
+        // Convert gitignore syntax to glob
+        val globPattern = when {
+            // Absolute path relative to root (e.g., /build)
+            pattern.startsWith("/") -> "glob:${pattern.drop(1)}"
+            // Recursive match (e.g., *.class or build/)
+            else -> "glob:**/{$pattern}"
+        }
+
+
+        if (fs.runCatching { getPathMatcher(globPattern).matches(relativePath) }.getOrElse { false })
+            return true
+    }
+    return false
 }
 

@@ -18,6 +18,7 @@ target/
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+.run/
 
 ### Kotlin ###
 .kotlin

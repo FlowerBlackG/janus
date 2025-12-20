@@ -22,7 +22,11 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
     suspend fun sendResponse(code: Int, data: ByteBuffer? = null) {
         val response = JanusMessage.create(JanusMessage.CommonResponse.typeCode) as JanusMessage.CommonResponse
         response.code = code
-        response.msg = data?.let { ByteArray(data.remaining()) } ?: byteArrayOf()
+        response.msg = data?.let {
+            val arr = ByteArray(it.remaining())
+            it.get(arr)
+            arr
+        } ?: byteArrayOf()
         send(response)
 
         JanusMessage.recycle(response)

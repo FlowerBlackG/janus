@@ -2,6 +2,7 @@
 
 package io.github.flowerblackg.janus.config
 
+import io.github.flowerblackg.janus.crypto.AesHelper
 import io.github.flowerblackg.janus.logging.Logger
 import org.json.JSONException
 import org.json.JSONObject
@@ -18,6 +19,7 @@ data class Config(
     var port: Int? = null,
     /** Nonnull for server mode. */
     var host: InetAddress? = null,
+    /** Only 1 workspace in this collection is ensured for client mode. */
     val workspaces: MutableMap<Pair<ConnectionMode, String>, WorkspaceConfig> = HashMap()
 ) {
     companion object {
@@ -40,8 +42,7 @@ data class Config(
     )
 
     data class CryptoConfig(
-        var enabled: Boolean = false,
-        var key: ByteArray = byteArrayOf()
+        var aes: AesHelper? = null,
     )
 
     data class IgnoreConfig(
@@ -165,6 +166,7 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
  *
  *
  * @param result [LoadConfigResult.config] must have it `runMode` property set before calling this function.
+ * @return Workspaces that with same runMode as you specified (in config).
  */
 private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult) {
     val config = result.config
@@ -187,7 +189,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
         globalIgnoreLists.file.addAll(ignore.file)
     }
 
-    val globalCryptoConfig = appConfig?.secret?.toCryptoConfig() ?: Config.CryptoConfig(enabled = false)
+    val globalCryptoConfig = appConfig?.secret?.toCryptoConfig() ?: Config.CryptoConfig(aes = null)
 
     appConfig?.workspaces?.forEach { appConfigWorkspace ->
         if (appConfigWorkspace.role != config.runMode)
@@ -218,7 +220,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             }
         }
 
-        if (!workspace.crypto.enabled) {
+        if (workspace.crypto.aes == null) {
             result.messages.add(LoadConfigMessage(
                 "Workspace '${workspace.name}' has no secret", LoadConfigMessage.Level.WARN
             ))
@@ -260,12 +262,15 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             result.messages.add(LoadConfigMessage("Secret is not set for workspace '${rawCfgWorkspace}'.", LoadConfigMessage.Level.WARN))
         }
 
+
+        val aesHelper = rawCfgSecret?.toByteArray()?.let { AesHelper(keyBytes = it) }
+
         val ws = Config.WorkspaceConfig(
             name = rawCfgWorkspace,
             path = rawCfgPath,
             mode = config.runMode,
             danglingPolicy = globalDanglingPolicy,
-            crypto = Config.CryptoConfig(enabled = rawCfgSecret != null, key = rawCfgSecret?.toByteArray() ?: byteArrayOf()),
+            crypto = Config.CryptoConfig(aes = aesHelper),
             ignore = globalIgnoreLists,
             port = config.port,
             host = config.host,

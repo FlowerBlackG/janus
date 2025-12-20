@@ -2,6 +2,7 @@
 
 package io.github.flowerblackg.janus.config
 
+import io.github.flowerblackg.janus.crypto.AesHelper
 import io.github.flowerblackg.janus.logging.Logger
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -89,18 +90,20 @@ data class SecretConfig(
      * @return null if something went wrong.
      */
     fun toCryptoConfig(): Config.CryptoConfig? {
-        val cryptoConfig = Config.CryptoConfig(enabled = value.isNotBlank())
-        if (!cryptoConfig.enabled) {
+        val cryptoConfig = Config.CryptoConfig(aes = null)
+        if (value.isBlank()) {
             return cryptoConfig
         }
 
+        val keyBytes: ByteArray
+
         if (type == SecretType.STRING) {
-            cryptoConfig.key = value.toByteArray()
+            keyBytes = value.toByteArray()
             return cryptoConfig
         }
 
         if (type == SecretType.BASE64) {
-            cryptoConfig.key = try {
+            keyBytes = try {
                 Base64.decode(value)
             } catch (e: Exception) {
                 Logger.error("Failed to decode Base64 string: ${e.message}", trace = e)
@@ -118,15 +121,22 @@ data class SecretConfig(
 
             if (type == SecretType.FILE_BASE64) {
                 try {
-                    cryptoConfig.key = Base64.decode(fileContent)
+                    keyBytes = Base64.decode(fileContent)
                 } catch (e: Exception) {
                     Logger.error("Failed to decode file: $value to Base64: ${e.message}", trace = e)
                     return null
                 }
             }
             else { // type is FILE_STRING
-                cryptoConfig.key = fileContent.toByteArray()
+                keyBytes = fileContent.toByteArray()
             }
+
+            var aesHelper: AesHelper? = null
+            if (keyBytes.isNotEmpty()) {
+                aesHelper = AesHelper(keyBytes = keyBytes)
+            }
+
+            cryptoConfig.aes = aesHelper
 
             return cryptoConfig
         }

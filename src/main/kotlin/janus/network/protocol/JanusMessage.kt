@@ -268,6 +268,26 @@ sealed class JanusMessage private constructor() {
         }
     }
 
+
+    class GetSystemTimeMillis : JanusMessage() {
+        companion object {
+            const val typeCode = 0x1801
+        }
+
+        override val type get() = typeCode
+        override val bodyLength get() = 0L
+    }
+
+
+    class FetchFileTree : JanusMessage() {
+        companion object {
+            const val typeCode = 0x2001
+        }
+
+        override val type get() = typeCode
+        override val bodyLength get() = 0L
+    }
+
 }
 
 
@@ -286,7 +306,8 @@ private fun registerMsgTypes() {
     registerMsgType(JanusMessage.CommonResponse.typeCode) { JanusMessage.CommonResponse() }
     registerMsgType(JanusMessage.Hello.typeCode) { JanusMessage.Hello() }
     registerMsgType(JanusMessage.Auth.typeCode) { JanusMessage.Auth() }
-
+    registerMsgType(JanusMessage.GetSystemTimeMillis.typeCode) { JanusMessage.GetSystemTimeMillis() }
+    registerMsgType(JanusMessage.FetchFileTree.typeCode) { JanusMessage.FetchFileTree() }
 }
 
 private fun checkAllMsgTypesRegistered() {

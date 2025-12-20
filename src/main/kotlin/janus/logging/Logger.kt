@@ -19,9 +19,7 @@ class Logger private constructor() {
                     field = Logger()
                 return field
             }
-            set(value) {
-                throw UnsupportedOperationException("Logger is a singleton")
-            }
+            private set
 
         fun info(msg: String, delim: String = "\n", trace: Throwable? = null) {
             instance?.info(msg, delim, trace)
@@ -46,7 +44,7 @@ class Logger private constructor() {
 
 
     fun log(msg: String, delim: String = "\n", trace: Throwable? = null) {
-        print("${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))} $msg$delim")
+        print("${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))} $msg$delim")
         trace?.printStackTrace()
     }
 

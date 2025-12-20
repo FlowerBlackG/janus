@@ -14,7 +14,6 @@ import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -61,7 +60,7 @@ data class FileTree(
     companion object {
         @ExperimentalSerializationApi
         fun from(bytes: ByteArray, baseRoot: Path = Path("")): FileTree? {
-            val tree = ProtoBuf.decodeFromByteArray(FileTree.serializer(), bytes)
+            val tree = ProtoBuf.decodeFromByteArray(serializer(), bytes)
 
             // Reconstruct paths and parents.
             tree.reconstruct(baseRoot, null)
@@ -130,7 +129,7 @@ data class FileTree(
 
 
     fun encodeToByteArray(): ByteArray {
-        return ProtoBuf.encodeToByteArray(this)
+        return ProtoBuf.encodeToByteArray(serializer(), this)
     }
 }
 

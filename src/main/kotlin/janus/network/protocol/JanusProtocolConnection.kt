@@ -141,6 +141,9 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         val workspace = workspaces[wsName]
         val aes = workspace?.crypto?.aes
 
+        if (workspace == null)
+            Logger.warn("Failed to load workspace required by client: $wsName. Client denied.")
+
         val challenge = Uuid.random().toHexString() + Random.nextLong()
         val challengeBytes = challenge.toByteArray(StandardCharsets.UTF_8)
         val toClient = JanusMessage.create(JanusMessage.Auth.typeCode) as JanusMessage.Auth
@@ -148,10 +151,15 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         send(toClient)
         val fromClient2 = recvMessage(JanusMessage.Auth.typeCode) as JanusMessage.Auth
 
-        val success = if (workspace != null)
-                (aes?.decrypt(fromClient2.challenge) ?: fromClient2.challenge).contentEquals(challengeBytes)
-            else
-                false
+        val success = if (workspace != null) {
+            val authResult = (aes?.decrypt(fromClient2.challenge) ?: fromClient2.challenge).contentEquals(challengeBytes)
+            if (!authResult)
+                Logger.warn("Client didn't encrypted challenge correctly. Client denied.")
+
+            authResult
+        }
+        else
+            false
 
         if (success) {
             workspace!!
@@ -180,17 +188,15 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         // Auth : step 2 & 3
 
         val fromSvr = recvMessage(JanusMessage.Auth.typeCode) as JanusMessage.Auth
-        val cipher = aes?.encrypt(fromSvr.challenge) ?: fromSvr.challenge
+        val encrypted = aes?.encrypt(fromSvr.challenge) ?: fromSvr.challenge
 
         toSvr.reset()
-        toSvr.challenge = cipher
+        toSvr.challenge = encrypted
         send(toSvr)
 
         // Auth : step 4
 
-        val response = recvMessage(JanusMessage.CommonResponse.typeCode) as JanusMessage.CommonResponse
-        if (!response.success)
-            throw Exception("Failed on auth")
+        val response = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on auth")
 
         JanusMessage.recycle(fromSvr, toSvr, response)
     }

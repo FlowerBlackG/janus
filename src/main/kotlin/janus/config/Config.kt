@@ -46,8 +46,7 @@ data class Config(
     )
 
     data class IgnoreConfig(
-        var folder: MutableSet<String> = HashSet(),
-        var file: MutableSet<String> = HashSet(),
+        var lines: MutableSet<String> = mutableSetOf()
     )
 }
 
@@ -184,10 +183,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
     } ?: appConfig?.dangling ?: DanglingPolicy.KEEP
 
     val globalIgnoreLists = Config.IgnoreConfig()
-    appConfig?.ignore?.let { ignore ->
-        globalIgnoreLists.folder.addAll(ignore.folder)
-        globalIgnoreLists.file.addAll(ignore.file)
-    }
+    appConfig?.ignore?.lines?.let { globalIgnoreLists.lines.addAll(it) }
 
     val globalCryptoConfig = appConfig?.secret?.toCryptoConfig() ?: Config.CryptoConfig(aes = null)
 
@@ -227,14 +223,10 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
         }
 
         // load ignore config
-        if (appConfigWorkspace.ignore != null) {
-            workspace.ignore.folder.addAll(appConfigWorkspace.ignore.folder)
-            workspace.ignore.file.addAll(appConfigWorkspace.ignore.file)
-        }
+        appConfigWorkspace.ignore?.lines?.let { workspace.ignore.lines.addAll(it) }
 
         if (appConfigWorkspace.ignore == null || appConfigWorkspace.ignore.override == false) {
-            workspace.ignore.folder.addAll(globalIgnoreLists.folder)
-            workspace.ignore.file.addAll(globalIgnoreLists.file)
+            workspace.ignore.lines.addAll(globalIgnoreLists.lines)
         }
 
         config.workspaces[Pair(workspace.mode, workspace.name)] = workspace

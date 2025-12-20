@@ -64,8 +64,7 @@ data class AppConfig(
 
 @Serializable
 data class IgnoreConfig(
-    val folder: List<String> = emptyList(),
-    val file: List<String> = emptyList(),
+    val lines: List<String> = emptyList(),
     val override: Boolean? = null
 )
 

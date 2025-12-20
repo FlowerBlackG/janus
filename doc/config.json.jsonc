@@ -14,15 +14,12 @@
     "host": "127.0.0.1",
     "port": 3000,
     
-    // optional. bash glob format.
+    // optional.
     "ignore": {
-       "folder": [
-            "node_modules"
-            // ...
-        ],
-        "file": [
-            "*.log"
-            // ...
+        "lines": [
+            "dist",
+            "*.tmp"
+            // ...  in .gitignore format.
         ]
     },
 
@@ -52,17 +49,15 @@
                 "value": ""
             },
 
-            // configure on client side.
+            // for server: files under ignore will not be listed to client.
+            // for client: files under ignore will not be sent to server.
             "ignore": {
                 // if true, this ignore overrides parent. else, merge. defaults to true.
                 "override": true,
-                "folder": [
-                    "node_modules"
-                    // ...
-                ],
-                "file": [
-                    "*.log"
-                    // ...
+                "lines": [
+                    "dist",
+                    "*.tmp"
+                    // ...  in .gitignore format.
                 ]
             },
 

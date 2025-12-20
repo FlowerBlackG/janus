@@ -51,6 +51,8 @@ data class FileTree(
     @Transient
     var parent: FileTree? = null,
 
+    var lastModifiedMillis: Long = 0L,
+
     /**
      * We mark this as Transient for serialization.
      * We reconstruct the path during the 'reconstruct' phase
@@ -177,6 +179,7 @@ private suspend fun globFilesInternal(
         },
         path = relativePath,
         name = current.name,
+        lastModifiedMillis = attrs.lastModifiedTime().toMillis(),
         parent = parent
     )
 

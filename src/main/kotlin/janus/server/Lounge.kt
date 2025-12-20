@@ -91,7 +91,7 @@ class Lounge constructor(
     protected suspend fun fetchFileTreeHandler(msg: JanusMessage.FetchFileTree) {
         val fileTree: FileTree
         val globDuration = measureTime {
-            fileTree = workspace.path.globFilesRelative() ?: throw Exception("Failed to fetch file tree.")
+            fileTree = workspace.path.globFilesRelative(workspace.ignore) ?: throw Exception("Failed to fetch file tree.")
         }
 
         val encoded: ByteArray

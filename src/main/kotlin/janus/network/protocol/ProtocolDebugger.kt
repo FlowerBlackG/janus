@@ -13,6 +13,7 @@ import kotlin.reflect.full.declaredMemberProperties
 
 object protocolDebugger {
     val enabled = false
+    val noHex = true
 
     fun dump(byteBuffer: ByteBuffer, prompt: String = "Network Dump") {
         if (!enabled)
@@ -33,6 +34,9 @@ object protocolDebugger {
             fullPrompt += " - ${header.first} (${header.second})"
         }
         Logger.debug(fullPrompt)
+
+        if (noHex)
+            return
 
         fun printLine() {
             line.flip()

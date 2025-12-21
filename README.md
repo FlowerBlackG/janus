@@ -4,7 +4,7 @@
 
 Janus is a high-performance file sync tool built to provide superior performance to rsync in large-scale directories with hundreds of thousands of files.
 
-Janus leverages Kotlin Coroutines alongside Java NIO’s asynchronous file and networking capabilities to maximize overall system performance.
+Janus leverages Kotlin Coroutines alongside Java NIO's asynchronous file and networking capabilities to maximize overall system performance.
 
 ## Janus Protocol
 

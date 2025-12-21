@@ -21,23 +21,23 @@ class Logger private constructor() {
             }
             private set
 
-        fun info(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        fun info(msg: String = "", delim: String = "\n", trace: Throwable? = null) {
             instance?.info(msg, delim, trace)
         }
 
-        fun error(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        fun error(msg: String = "", delim: String = "\n", trace: Throwable? = null) {
             instance?.error(msg, delim, trace)
         }
 
-        fun warn(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        fun warn(msg: String = "", delim: String = "\n", trace: Throwable? = null) {
             instance?.warn(msg, delim, trace)
         }
 
-        fun success(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        fun success(msg: String = "", delim: String = "\n", trace: Throwable? = null) {
             instance?.success(msg, delim, trace)
         }
 
-        fun debug(msg: String, delim: String = "\n", trace: Throwable? = null) {
+        fun debug(msg: String = "", delim: String = "\n", trace: Throwable? = null) {
             instance?.debug(msg, delim, trace)
         }
     }

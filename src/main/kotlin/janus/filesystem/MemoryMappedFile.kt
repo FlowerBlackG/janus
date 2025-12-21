@@ -2,46 +2,37 @@
 
 package io.github.flowerblackg.janus.filesystem
 
-import io.github.flowerblackg.janus.logging.Logger
 import java.io.IOException
+import java.lang.foreign.Arena
+import java.lang.foreign.MemorySegment
 import java.nio.ByteBuffer
-import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
 
-class MemoryMappedFile : AutoCloseable {
+class MemoryMappedFile(val path: Path) : AutoCloseable {
 
     protected lateinit var fileChannel: FileChannel
-    var chunkSize: Long = 0
-        protected set
+    protected lateinit var arena: Arena
+    protected lateinit var segment: MemorySegment
+
     var size: Long = 0
         protected set
 
-    protected val chunkBuffers = mutableListOf<MappedByteBuffer>()
-
     var readPos: Long = 0
-        protected set
     var writePos: Long = 0
-        protected set
 
     var closed = false
-        protected set
+        private set
 
     companion object {
-        /**
-         * Since Java's ByteBuffer uses Integer as its size type, we need a buffer array to store files larger than 2GB.
-         */
-        private const val DEFAULT_CHUNK_SIZE = 1 * 1024L * 1024L * 1024L
-
         @Throws(IOException::class)
         fun createAndMap(path: Path, size: Long): MemoryMappedFile {
             assert(size >= 0) { "Size must be non-negative, but was $size" }
 
-            val mmf = MemoryMappedFile()
+            val mmf = MemoryMappedFile(path = path)
             mmf.size = size
-            mmf.chunkSize = DEFAULT_CHUNK_SIZE
             mmf.fileChannel = FileChannel.open(
                 path,
                 StandardOpenOption.READ,
@@ -51,7 +42,8 @@ class MemoryMappedFile : AutoCloseable {
             )
             mmf.fileChannel.truncate(size)
 
-            mmf.mapChunks(mode = FileChannel.MapMode.READ_WRITE)
+            mmf.arena = Arena.ofShared()
+            mmf.segment = mmf.fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, size, mmf.arena)
 
             return mmf
         }
@@ -62,7 +54,7 @@ class MemoryMappedFile : AutoCloseable {
             path: Path,
             mode: FileChannel.MapMode = FileChannel.MapMode.READ_ONLY
         ): MemoryMappedFile {
-            val mmf = MemoryMappedFile()
+            val mmf = MemoryMappedFile(path = path)
             val options = if (mode == FileChannel.MapMode.READ_ONLY) {
                 arrayOf(StandardOpenOption.READ)
             } else {
@@ -71,94 +63,49 @@ class MemoryMappedFile : AutoCloseable {
 
             mmf.fileChannel = FileChannel.open(path, *options)
             mmf.size = mmf.fileChannel.size()
-            mmf.chunkSize = DEFAULT_CHUNK_SIZE
 
-            mmf.mapChunks(mode)
+            mmf.arena = Arena.ofShared()
+            mmf.segment = mmf.fileChannel.map(mode, 0, mmf.size, mmf.arena)
+
             return mmf
         }
     }
 
 
-    /**
-     * Must have [fileChannel] and [size] initialized before calling this method.
-     */
-    private fun mapChunks(mode: FileChannel.MapMode) {
-        if (chunkBuffers.isNotEmpty()) {
-            Logger.error("MemoryMappedFile is already mapped", trace = Throwable())
-            return
-        }
-
-        var remainingSize = size
-
-        while (remainingSize > 0) {
-            val currentChunkSize = minOf(chunkSize, remainingSize)
-            val buffer = fileChannel.map(
-                mode,
-                size - remainingSize,
-                currentChunkSize
-            )
-            chunkBuffers += buffer
-            remainingSize -= currentChunkSize
-        }
-    }
-
-
     fun write(offset: Long, data: ByteArray) {
-        this.write(buffer = ByteBuffer.wrap(data), offset = offset)
+        checkNotClosed()
+        checkBufferValid(offset, data.size.toLong())
+        MemorySegment.copy(MemorySegment.ofArray(data), 0, segment, offset, data.size.toLong())
+        this.writePos = offset + data.size
     }
 
 
     fun write(buffer: ByteBuffer, offset: Long = this.writePos) {
         checkNotClosed()
-        checkBufferValid(this.writePos, buffer.remaining().toLong())
+        val remaining = buffer.remaining().toLong()
+        checkBufferValid(offset, remaining)
 
-        this.writePos = offset
-        var remaining = buffer.remaining()
+        val src = MemorySegment.ofBuffer(buffer)
+        segment.asSlice(offset, remaining).copyFrom(src)
 
-        while (remaining > 0) {
-            val (chunkIdx, chunkOffset) = calculateChunkPosition(this.writePos)
-            val chunkBuffer = chunkBuffers[chunkIdx]
-            val chunkRemaining = chunkBuffer.capacity() - chunkOffset
-            val writeSize = minOf(chunkRemaining, remaining)
-            chunkBuffer.position(chunkOffset)
-            val tmpBuf = buffer.duplicate()
-            tmpBuf.limit(tmpBuf.position() + writeSize)
-            chunkBuffer.put(tmpBuf)
-
-            remaining -= writeSize
-            this.writePos += writeSize
-
-            buffer.position(buffer.position() + writeSize)
-        }
+        // Update positions.
+        this.writePos = offset + remaining
+        buffer.position(buffer.position() + remaining.toInt())
     }
 
 
     fun read(buffer: ByteBuffer, size: Int = buffer.remaining(), offset: Long = this.readPos): Int {
         checkNotClosed()
-        checkBufferValid(offset, size.toLong())
+        val length = size.toLong()
+        checkBufferValid(offset, length)
 
-        this.readPos = offset
-        var remainingToRead = size
+        val srcSlice = segment.asSlice(offset, length)
+        val dest = MemorySegment.ofBuffer(buffer)
 
-        while (remainingToRead > 0) {
-            val (chunkIdx, chunkOffset) = calculateChunkPosition(readPos)
-            val chunkBuffer = chunkBuffers[chunkIdx]
+        dest.copyFrom(srcSlice)
 
-            // Calculate how much we can read from the current chunk
-            val chunkRemaining = chunkBuffer.capacity() - chunkOffset
-            val readSize = minOf(chunkRemaining, remainingToRead)
-
-            // Set position and create a slice to prevent affecting original chunk state
-            chunkBuffer.position(chunkOffset)
-            val slice = chunkBuffer.duplicate()
-            slice.limit(chunkOffset + readSize)
-
-            // Transfer data to the destination buffer
-            buffer.put(slice)
-
-            remainingToRead -= readSize
-            readPos += readSize
-        }
+        this.readPos = offset + length
+        buffer.position(buffer.position() + size)
 
         return size
     }
@@ -166,7 +113,7 @@ class MemoryMappedFile : AutoCloseable {
 
     @Throws(IllegalStateException::class)
     protected fun checkNotClosed() {
-        if (closed)
+        if (closed || !arena.scope().isAlive)
             throw IllegalStateException("This file is already closed.")
     }
 
@@ -174,21 +121,16 @@ class MemoryMappedFile : AutoCloseable {
     protected fun checkBufferValid(offset: Long, length: Long) {
         require(offset >= 0) { "Offset must be non-negative, but was $offset" }
         require(length >= 0) { "Size must be non-negative, but was $length" }
-        require(offset + length <= size) { "Offset + size must be less than or equal to the file size, but was $offset + $length" }
-    }
-
-
-    /**
-     * @return Pair(chunkIndex, chunkOffset)
-     */
-    protected fun calculateChunkPosition(offset: Long): Pair<Int, Int> {
-        return Pair((offset / chunkSize).toInt(), (offset % chunkSize).toInt())
+        if (offset + length > size) {
+            throw IndexOutOfBoundsException("Offset $offset + length $length exceeds size $size")
+        }
     }
 
 
     fun force() {
         checkNotClosed()
-        chunkBuffers.forEach { it.force() }
+        if (segment.isMapped)
+            segment.force()
     }
 
 
@@ -197,22 +139,26 @@ class MemoryMappedFile : AutoCloseable {
         if (closed)
             return
 
-        var primaryException: Throwable?
+        var err: Throwable? = null
 
-        primaryException = runCatching { this.force() }.exceptionOrNull()
+        if (arena.scope().isAlive && segment.isMapped)
+            runCatching { segment.force() }.onFailure { err = it }
 
-        runCatching { fileChannel.close() }.exceptionOrNull()?.let { e ->
-            if (primaryException != null)
-                primaryException.addSuppressed(e)
+        runCatching { arena.close() }.onFailure {
+            if (err == null)
+                err = it
             else
-                primaryException = e
+                err.addSuppressed(it)
         }
 
-        chunkBuffers.clear()  // promote GC
+        runCatching { fileChannel.close() }.onFailure {
+            if (err == null)
+                err = it
+            else
+                err.addSuppressed(it)
+        }
+
         closed = true
-
-        if (primaryException != null)
-            throw primaryException
+        err?.let { throw it }
     }
-
 }

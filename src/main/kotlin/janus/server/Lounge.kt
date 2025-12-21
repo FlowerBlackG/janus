@@ -4,16 +4,13 @@ package io.github.flowerblackg.janus.server
 
 import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.config.ConnectionMode
-import io.github.flowerblackg.janus.filesystem.FileTree
-import io.github.flowerblackg.janus.filesystem.globFilesRelative
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janus.server.messagehandlers.CommitSyncPlanHandler
 import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
 import io.github.flowerblackg.janus.server.messagehandlers.GetSystemTimeMillisHandler
 import io.github.flowerblackg.janus.server.messagehandlers.MessageHandler
-import java.nio.ByteBuffer
-import kotlin.time.measureTime
 
 
 /**
@@ -123,6 +120,7 @@ class Lounge constructor(
 
         handle(JanusMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
         handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
+        handle(JanusMessage.CommitSyncPlan.typeCode, CommitSyncPlanHandler(workspace))
 
         while (true) {
             runCatching { recvAndHandleMessage() }.exceptionOrNull()?.let {

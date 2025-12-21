@@ -11,6 +11,7 @@ import io.github.flowerblackg.janus.server.messagehandlers.CommitSyncPlanHandler
 import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
 import io.github.flowerblackg.janus.server.messagehandlers.GetSystemTimeMillisHandler
 import io.github.flowerblackg.janus.server.messagehandlers.MessageHandler
+import io.github.flowerblackg.janus.server.messagehandlers.UploadFileHandler
 
 
 /**
@@ -121,6 +122,7 @@ class Lounge constructor(
         handle(JanusMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
         handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
         handle(JanusMessage.CommitSyncPlan.typeCode, CommitSyncPlanHandler(workspace))
+        handle(JanusMessage.UploadFile.typeCode, UploadFileHandler(workspace))
 
         while (true) {
             runCatching { recvAndHandleMessage() }.exceptionOrNull()?.let {

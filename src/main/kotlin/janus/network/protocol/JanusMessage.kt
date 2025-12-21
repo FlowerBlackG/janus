@@ -218,6 +218,31 @@ sealed class JanusMessage private constructor() {
     }
 
 
+    class DataBlock : JanusMessage() {
+        companion object {
+            const val typeCode = 0xA002
+        }
+
+        override val type get() = typeCode
+        override val bodyLength get() = dataBlock.size.toLong()
+
+        var dataBlock: ByteArray = byteArrayOf()
+
+        override fun decodeBody(data: ByteBuffer) {
+            dataBlock = ByteArray(data.remaining())
+            data.get(dataBlock)
+        }
+
+        override fun encodeBody(container: ByteBuffer) {
+            container.put(dataBlock)
+        }
+
+        override fun reset() {
+            dataBlock = byteArrayOf()
+        }
+    }
+
+
     class Hello : JanusMessage() {
         companion object {
             const val typeCode = 0x1000
@@ -333,6 +358,39 @@ sealed class JanusMessage private constructor() {
         fun toSyncPlans(baseRoot: Path = Path("")) = syncPlansBytes.map { SyncPlan.from(it, baseRoot) }
     }
 
+
+    class UploadFile : JanusMessage() {
+        companion object {
+            const val typeCode = 0x2003
+        }
+
+        override val type get() = typeCode
+        override val bodyLength
+            get() = pathString.length.toLong() + Long.SIZE_BYTES
+
+        var fileSize: Long = 0L
+
+        var path: Path = Path("")
+        val pathString: String
+            get() = path.toString().replace('\\', '/')
+
+        override fun decodeBody(data: ByteBuffer) {
+            fileSize = data.getLong()
+            val byteArr = ByteArray(data.remaining())
+            data.get(byteArr)
+            path = Path(byteArr.decodeToString())
+        }
+
+        override fun encodeBody(container: ByteBuffer) {
+            container.putLong(fileSize)
+            container.put(pathString.encodeToByteArray())
+        }
+
+        override fun reset() {
+            path = Path("")
+        }
+    }
+
 }
 
 
@@ -349,11 +407,13 @@ private fun registerMsgType(msgType: Int, creator: () -> JanusMessage) {
 private fun registerMsgTypes() {
     // Add a line for each message struct.
     registerMsgType(JanusMessage.CommonResponse.typeCode) { JanusMessage.CommonResponse() }
+    registerMsgType(JanusMessage.DataBlock.typeCode) { JanusMessage.DataBlock() }
     registerMsgType(JanusMessage.Hello.typeCode) { JanusMessage.Hello() }
     registerMsgType(JanusMessage.Auth.typeCode) { JanusMessage.Auth() }
     registerMsgType(JanusMessage.GetSystemTimeMillis.typeCode) { JanusMessage.GetSystemTimeMillis() }
     registerMsgType(JanusMessage.FetchFileTree.typeCode) { JanusMessage.FetchFileTree() }
     registerMsgType(JanusMessage.CommitSyncPlan.typeCode) { JanusMessage.CommitSyncPlan() }
+    registerMsgType(JanusMessage.UploadFile.typeCode) { JanusMessage.UploadFile() }
 }
 
 private fun checkAllMsgTypesRegistered() {

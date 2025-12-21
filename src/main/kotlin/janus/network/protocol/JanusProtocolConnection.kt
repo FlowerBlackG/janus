@@ -4,13 +4,17 @@ package io.github.flowerblackg.janus.network.protocol
 
 import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.filesystem.FileTree
+import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
 import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.AsyncSocketWrapper
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
+import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.absolute
 import kotlin.random.Random
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -255,5 +259,60 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
 
         val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on commit sync plan")
         JanusMessage.recycle(req, res)
+    }
+
+
+    private suspend fun sendFile(file: MemoryMappedFile) {
+        val timeBeginMillis = System.currentTimeMillis()
+
+        val dataBlockReq = JanusMessage.create(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
+
+        file.readPos = 0
+        var remaining = file.size
+        val chunkSize = 1 * 1024L * 1024
+        var sharedByteArray = byteArrayOf()
+        while (remaining > 0) {
+            dataBlockReq.reset()
+            val size = minOf(chunkSize, remaining)
+            sharedByteArray = if (sharedByteArray.size == size.toInt()) sharedByteArray else ByteArray(size.toInt())
+            dataBlockReq.dataBlock = sharedByteArray
+            val bytesRead = file.read(ByteBuffer.wrap(sharedByteArray))
+
+            if (bytesRead != size.toInt())
+                throw Exception("Failed to read file: ${file.path}")
+
+            remaining -= size
+            send(dataBlockReq)
+        }
+
+        JanusMessage.recycle(dataBlockReq)
+
+        val timeEndMillis = System.currentTimeMillis()
+        var timeCostMillis = timeEndMillis - timeBeginMillis
+        if (timeCostMillis <= 0)
+            timeCostMillis = 1
+        val speedMBps = file.size * 1000 / 1024 / 1024 / timeCostMillis
+        Logger.success("File uploaded in $timeCostMillis ms. Speed: $speedMBps MB/s")
+    }
+
+
+    suspend fun uploadFile(filePath: Path, workspace: Config.WorkspaceConfig) {
+        val realPath = workspace.path.resolve(filePath)
+        val realPathAbs = realPath.absolute().normalize()
+        if (!realPathAbs.startsWith(workspace.path.absolute().normalize()))
+            throw Exception("File path is not in workspace: $realPath")
+
+        val uploadFileReq = JanusMessage.create(JanusMessage.UploadFile.typeCode) as JanusMessage.UploadFile
+        uploadFileReq.path = filePath
+        uploadFileReq.fileSize = Files.size(realPathAbs)
+        send(uploadFileReq)
+
+        JanusMessage.recycle(
+            uploadFileReq,
+            recvResponse(throwOnFail = true, "Server denied uploading file $realPathAbs")
+        )
+
+        MemoryMappedFile.openAndMap(realPathAbs, FileChannel.MapMode.READ_ONLY).use { sendFile(it) }
+        JanusMessage.recycle(recvResponse(throwOnFail = true, "Server failed to receive file: $realPathAbs"))
     }
 }

@@ -2,15 +2,22 @@
 
 package io.github.flowerblackg.janus.filesystem
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.protobuf.ProtoBuf
 import java.nio.file.Path
+import kotlin.io.path.Path
 
+@Serializable
 data class SyncPlan(
     val name: String,
     val fileType: FileType,
-    val path: Path,
+    @Transient
+    var path: Path = Path(""),
     var action: SyncAction,
     var children: List<SyncPlan> = mutableListOf()
 ) {
+    @Serializable
     enum class SyncAction {
         NONE,
 
@@ -28,6 +35,53 @@ data class SyncPlan(
             remote: FileTree?,
             remoteLocalTimeDiffMillis: Long = 0
         ) = buildSyncPlan(local = local, remote = remote, remoteLocalTimeDiffMillis = remoteLocalTimeDiffMillis)
+
+        fun from(bytes: ByteArray, baseRoot: Path = Path("")): SyncPlan {
+            val tree = ProtoBuf.decodeFromByteArray(serializer(), bytes)
+
+            tree.reconstruct(baseRoot)
+
+            if (!tree.isSafe()) {
+                throw Exception("Malicious SyncPlan detected: Contains illegal path references.")
+            }
+
+            return tree
+        }
+
+    }
+
+
+    fun toList(): List<SyncPlan> {
+        return listOf(this) + children.flatMap { it.toList() }
+    }
+
+
+    fun reconstruct(currentPath: Path) {
+        this.path = currentPath
+        for (child in children) {
+            child.reconstruct(currentPath.resolve(child.name))
+        }
+    }
+
+
+    fun isSafe(basePath: Path = this.path): Boolean {
+        return runCatching {
+            val resolvedPath = basePath.resolve(this.path).normalize().toAbsolutePath()
+            val absoluteBase = basePath.toAbsolutePath().normalize()
+
+            // Check if the resolved path still starts with the base directory
+            if (!resolvedPath.startsWith(absoluteBase)) {
+                return false
+            }
+
+            // Recurse through children
+            children.all { it.isSafe(basePath) }
+        }.getOrNull() ?: false
+    }
+
+
+    fun encodeToByteArray(): ByteArray {
+        return ProtoBuf.encodeToByteArray(serializer(), this)
     }
 }
 

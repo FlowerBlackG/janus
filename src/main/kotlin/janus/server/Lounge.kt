@@ -9,6 +9,9 @@ import io.github.flowerblackg.janus.filesystem.globFilesRelative
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
+import io.github.flowerblackg.janus.server.messagehandlers.GetSystemTimeMillisHandler
+import io.github.flowerblackg.janus.server.messagehandlers.MessageHandler
 import java.nio.ByteBuffer
 import kotlin.time.measureTime
 
@@ -22,20 +25,28 @@ class Lounge constructor(
     val conn: JanusProtocolConnection,
     val config: Config
 ): AutoCloseable {
-    protected data class MsgHandler(
-        val msgType: Int,
-        val handler: suspend (JanusMessage) -> Unit,
-        val once: Boolean = false
-    )
 
-    protected val msgHandlers = mutableMapOf<Int, MsgHandler>()
+    protected enum class MessageHandlerLife { ONCE, ETERNAL }
+    protected val msgHandlers = mutableMapOf<Int, Pair<MessageHandlerLife, MessageHandler<JanusMessage>>>()
 
-    protected fun handle(msgType: Int, handler: suspend (JanusMessage) -> Unit) {
-        msgHandlers[msgType] = MsgHandler(msgType, handler, once = false)
+
+    protected fun <T: JanusMessage> handle(msgType: Int, life: MessageHandlerLife, handler: MessageHandler<T>) {
+        val typeErasedAdapter = object : MessageHandler<JanusMessage> {
+            override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage) {
+                @Suppress("UNCHECKED_CAST")
+                handler.handle(conn, msg as T)
+            }
+        }
+
+        msgHandlers[msgType] = Pair(life, typeErasedAdapter)
     }
 
-    protected fun handleOnce(msgType: Int, handler: suspend (JanusMessage) -> Unit) {
-        msgHandlers[msgType] = MsgHandler(msgType, handler, once = true)
+    protected fun <T: JanusMessage> handle(msgType: Int, handler: MessageHandler<T>) {
+        handle(msgType, MessageHandlerLife.ETERNAL, handler)
+    }
+
+    protected fun handleOnce(msgType: Int, handler: MessageHandler<JanusMessage>) {
+        handle(msgType, MessageHandlerLife.ONCE, handler)
     }
 
     protected fun removeHandler(msgType: Int) {
@@ -50,9 +61,9 @@ class Lounge constructor(
 
 
     protected suspend fun handleMessage(msg: JanusMessage) {
-        val handler = msgHandlers[msg.type] ?: throw Exception("No handler for message type: ${msg.type}")
-        val exception = runCatching { handler.handler(msg) }.exceptionOrNull()
-        if (handler.once)
+        val (life, handler) = msgHandlers[msg.type] ?: throw Exception("No handler for message type: ${msg.type}")
+        val exception = runCatching { handler.handle(conn = conn, msg = msg) }.exceptionOrNull()
+        if (life == MessageHandlerLife.ONCE)
             removeHandler(msg.type)
 
         if (exception != null) {
@@ -88,29 +99,6 @@ class Lounge constructor(
     }
 
 
-    protected suspend fun fetchFileTreeHandler(msg: JanusMessage.FetchFileTree) {
-        val fileTree: FileTree
-        val globDuration = measureTime {
-            fileTree = workspace.path.globFilesRelative(workspace.ignore) ?: throw Exception("Failed to fetch file tree.")
-        }
-
-        val encoded: ByteArray
-        val encodeDuration = measureTime {
-            encoded = fileTree.encodeToByteArray()
-        }
-
-        Logger.info("File tree built in ${globDuration.inWholeMilliseconds}ms.")
-        Logger.info("        encoded in ${encodeDuration.inWholeMilliseconds}ms.")
-        conn.sendResponse(code = 0, data = encoded)
-    }
-
-    protected suspend fun getSystemTimeMillisHandler(msg: JanusMessage.GetSystemTimeMillis) {
-        val time = System.currentTimeMillis()
-        val buf = ByteBuffer.allocate(8).putLong(time)
-        conn.sendResponse(code = 0, data = buf.array())
-    }
-
-
     protected var served = false
 
     /**
@@ -133,12 +121,8 @@ class Lounge constructor(
                 return 2
         }
 
-        handle(JanusMessage.FetchFileTree.typeCode) {
-            fetchFileTreeHandler(it as JanusMessage.FetchFileTree)
-        }
-        handle(JanusMessage.GetSystemTimeMillis.typeCode) {
-            getSystemTimeMillisHandler(it as JanusMessage.GetSystemTimeMillis)
-        }
+        handle(JanusMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
+        handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
 
         while (true) {
             runCatching { recvAndHandleMessage() }.exceptionOrNull()?.let {

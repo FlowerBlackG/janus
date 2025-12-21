@@ -5,6 +5,10 @@ package io.github.flowerblackg.janus.network.protocol
 import io.github.flowerblackg.janus.logging.Logger
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
+import java.nio.charset.StandardCharsets
+import kotlin.reflect.full.companionObject
+import kotlin.reflect.full.companionObjectInstance
+import kotlin.reflect.full.declaredMemberProperties
 
 
 object protocolDebugger {
@@ -23,7 +27,12 @@ object protocolDebugger {
         var pos = 0
 
         Logger.debug("-".repeat(48))
-        Logger.debug(prompt)
+        val header = bytes.tryGetHeader()
+        var fullPrompt = prompt
+        header?.let {
+            fullPrompt += " - ${header.first} (${header.second})"
+        }
+        Logger.debug(fullPrompt)
 
         fun printLine() {
             line.flip()
@@ -72,3 +81,41 @@ object protocolDebugger {
             printLine()
     }
 }
+
+
+private fun ByteBuffer.tryGetHeader(): Pair<String, Long>? {
+    val b = this.duplicate()
+    if (b.remaining() < JanusMessage.HEADER_LENGTH)
+        return null
+    val magicBytes = ByteArray(JanusMessage.MAGIC_STRING.length)
+    b.get(magicBytes)
+    val magic = String(magicBytes, StandardCharsets.US_ASCII)
+    if (magic != JanusMessage.MAGIC_STRING)
+        return null
+
+    val type = b.getInt()
+    val bodyLength = b.getLong()
+
+    var typeStr = "Unknown"
+
+    for (kClass in JanusMessage::class.sealedSubclasses) {
+        val companion = kClass.companionObject
+        val companionInstance = kClass.companionObjectInstance
+
+        if (companion == null || companionInstance == null)
+            continue
+
+        val typeCodeProp = companion.declaredMemberProperties.find { it.name == JanusMessage::typeCode.name }
+        typeCodeProp ?: continue
+
+        val typeCode = typeCodeProp.getter.call(companionInstance) as? Int ?: continue
+
+        if (typeCode == type) {
+            typeStr = kClass.simpleName ?: "Unknown"
+            break
+        }
+    }
+
+    return Pair(typeStr, bodyLength)
+}
+

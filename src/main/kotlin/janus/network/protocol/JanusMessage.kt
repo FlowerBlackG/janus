@@ -2,14 +2,15 @@
 
 package io.github.flowerblackg.janus.network.protocol
 
+import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.logging.Logger
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.TODO
+import kotlin.io.path.Path
 import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.system.exitProcess
 
@@ -288,6 +289,50 @@ sealed class JanusMessage private constructor() {
         override val bodyLength get() = 0L
     }
 
+
+    class CommitSyncPlan : JanusMessage() {
+        companion object {
+            const val typeCode = 0x2002
+        }
+
+        override val type get() = typeCode
+        override val bodyLength
+            get() = syncPlansBytes.sumOf { it.size }.toLong() + Long.SIZE_BYTES * syncPlansBytes.size
+
+        var syncPlansBytes: List<ByteArray> = emptyList()
+
+        override fun encodeBody(container: ByteBuffer) {
+            for (plan in syncPlansBytes) {
+                container.putLong(plan.size.toLong())
+                container.put(plan)
+            }
+        }
+
+        override fun decodeBody(data: ByteBuffer) {
+            val list = mutableListOf<ByteArray>()
+
+            while (data.remaining() >= Long.SIZE_BYTES) {
+                val planLen = data.getLong()
+                if (data.remaining() < planLen) {
+                    throw Exception("length ${data.remaining()} is less than plan-len $planLen")
+                }
+
+                val plan = ByteArray(planLen.toInt())
+                data.get(plan)
+                list += plan
+            }
+
+            this.syncPlansBytes = list
+        }
+
+        override fun reset() {
+            this.syncPlansBytes = emptyList()
+        }
+
+
+        fun toSyncPlans(baseRoot: Path = Path("")) = syncPlansBytes.map { SyncPlan.from(it, baseRoot) }
+    }
+
 }
 
 
@@ -308,6 +353,7 @@ private fun registerMsgTypes() {
     registerMsgType(JanusMessage.Auth.typeCode) { JanusMessage.Auth() }
     registerMsgType(JanusMessage.GetSystemTimeMillis.typeCode) { JanusMessage.GetSystemTimeMillis() }
     registerMsgType(JanusMessage.FetchFileTree.typeCode) { JanusMessage.FetchFileTree() }
+    registerMsgType(JanusMessage.CommitSyncPlan.typeCode) { JanusMessage.CommitSyncPlan() }
 }
 
 private fun checkAllMsgTypesRegistered() {

@@ -4,6 +4,7 @@ package io.github.flowerblackg.janus.network.protocol
 
 import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.filesystem.FileTree
+import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.AsyncSocketWrapper
 import java.nio.ByteBuffer
@@ -244,5 +245,15 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
             throw Exception("Wrong data size: ${res.data.size}")
 
         return ByteBuffer.wrap(res.data).getLong()
+    }
+
+
+    suspend fun commitSyncPlan(syncPlans: List<SyncPlan>) {
+        val req = JanusMessage.create(JanusMessage.CommitSyncPlan.typeCode) as JanusMessage.CommitSyncPlan
+        req.syncPlansBytes = syncPlans.map { it.encodeToByteArray() }
+        send(req)
+
+        val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on commit sync plan")
+        JanusMessage.recycle(req, res)
     }
 }

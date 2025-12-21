@@ -66,6 +66,11 @@ data class FileTree(
     }
 
 
+    override fun toString(): String {
+        return "FileTree($name, $type, lastModified: $lastModifiedMillis, ${children.size} children)"
+    }
+
+
     /**
      * Internal helper to restore Transients after decompression
      */

@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.absolute
+import kotlin.io.path.name
 import kotlin.random.Random
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -292,7 +293,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         if (timeCostMillis <= 0)
             timeCostMillis = 1
         val speedMBps = file.size * 1000 / 1024 / 1024 / timeCostMillis
-        Logger.success("File uploaded in $timeCostMillis ms. Speed: $speedMBps MB/s")
+        Logger.success("File ${file.path.name} uploaded in $timeCostMillis ms. Speed: $speedMBps MB/s")
     }
 
 

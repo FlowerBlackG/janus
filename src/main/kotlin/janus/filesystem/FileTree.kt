@@ -3,11 +3,10 @@
 package io.github.flowerblackg.janus.filesystem
 
 import io.github.flowerblackg.janus.config.Config
+import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -131,14 +130,14 @@ data class FileTree(
 }
 
 
-suspend fun Path.globFiles(): FileTree? = withContext(Dispatchers.IO) {
-    return@withContext globFilesInternal(null, this@globFiles, null, null)
+suspend fun Path.globFiles(): FileTree? {
+    return globFilesInternal(null, this@globFiles, null, null)
 }
 
 
-suspend fun Path.globFilesRelative(ignoreConfig: Config.IgnoreConfig? = null): FileTree? = withContext(Dispatchers.IO) {
+suspend fun Path.globFilesRelative(ignoreConfig: Config.IgnoreConfig? = null): FileTree? {
     val rootPath = this@globFilesRelative.toAbsolutePath()
-    return@withContext globFilesInternal(rootPath, rootPath, null, ignoreConfig)
+    return globFilesInternal(rootPath, rootPath, null, ignoreConfig)
 }
 
 
@@ -147,20 +146,20 @@ private suspend fun globFilesInternal(
     current: Path,
     parent: FileTree? = null,
     ignoreConfig: Config.IgnoreConfig? = null
-): FileTree? = withContext(Dispatchers.IO) {
+): FileTree? {
 
     val attrs = try {
         Files.readAttributes(current, BasicFileAttributes::class.java)
     } catch (e: Exception) {
         Logger.error("Failed to read attributes of $current: ${e.message}")
-        return@withContext null
+        return null
     }
 
     val relativePath = root?.relativize(current.toAbsolutePath()) ?: current
 
     // Check ignore.
     if (ignoreConfig != null && shouldIgnore(relativePath, attrs.isDirectory, ignoreConfig)) {
-        return@withContext null
+        return null
     }
 
 
@@ -192,13 +191,15 @@ private suspend fun globFilesInternal(
         val children = if (childPaths.size < 16) {
             childPaths.map { globFilesInternal(root, it, node, ignoreConfig) }
         } else {
-            childPaths.map { async { globFilesInternal(root, it, node, ignoreConfig) } }.awaitAll()
+            childPaths.map {
+                GlobalCoroutineScopes.IO.async { globFilesInternal(root, it, node, ignoreConfig) }
+            }.awaitAll()
         }
 
         node.children = children.filterNotNull().toMutableList()
     }
 
-    return@withContext node
+    return node
 }
 
 

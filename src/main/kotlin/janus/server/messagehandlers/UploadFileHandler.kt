@@ -4,12 +4,14 @@ package io.github.flowerblackg.janus.server.messagehandlers
 
 import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
+import io.github.flowerblackg.janus.filesystem.moveFile
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import kotlin.io.path.absolute
+import kotlin.io.path.name
 
 class UploadFileHandler(val ws: Config.WorkspaceConfig) : MessageHandler<JanusMessage.UploadFile> {
 
@@ -25,19 +27,23 @@ class UploadFileHandler(val ws: Config.WorkspaceConfig) : MessageHandler<JanusMe
 
         val beginTimeMillis = System.currentTimeMillis()
 
-        MemoryMappedFile.createAndMap(absPath, size = msg.fileSize).use { file ->
+        val tmpPath = absPath.resolveSibling("${absPath.name}.janus-sync-tmp")
+
+        MemoryMappedFile.createAndMap(tmpPath, size = msg.fileSize, permissionBits = msg.permBits).use { file ->
             file.writePos = 0
             var remaining = msg.fileSize
 
-            conn.sendResponse(code = 0)  // start accepting file.
+            // start accepting file.
 
             while (remaining > 0) {
                 val block = conn.recvMessage(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
-                file.write(ByteBuffer.wrap(block.dataBlock))
+                file.write(block.dataBuffer)
 
                 remaining -= block.dataBlock.size
             }
         }
+
+        moveFile(tmpPath, absPath, deleteSrcOnFailure = true)
 
         val endTimeMillis = System.currentTimeMillis()
         var timeCostMillis = endTimeMillis - beginTimeMillis

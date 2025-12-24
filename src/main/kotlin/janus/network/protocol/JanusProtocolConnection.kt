@@ -6,6 +6,7 @@ import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.filesystem.FileTree
 import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
 import io.github.flowerblackg.janus.filesystem.SyncPlan
+import io.github.flowerblackg.janus.filesystem.getPermissionMask
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.AsyncSocketWrapper
 import java.nio.ByteBuffer
@@ -303,17 +304,102 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         if (!realPathAbs.startsWith(workspace.path.absolute().normalize()))
             throw Exception("File path is not in workspace: $realPath")
 
+        val nonce = Random.nextLong()
         val uploadFileReq = JanusMessage.create(JanusMessage.UploadFile.typeCode) as JanusMessage.UploadFile
         uploadFileReq.path = filePath
         uploadFileReq.fileSize = Files.size(realPathAbs)
+        uploadFileReq.permBits = realPath.getPermissionMask()
+        uploadFileReq.nonce = nonce
+
         send(uploadFileReq)
 
-        JanusMessage.recycle(
-            uploadFileReq,
-            recvResponse(throwOnFail = true, "Server denied uploading file $realPathAbs")
-        )
+        JanusMessage.recycle(uploadFileReq)
 
         MemoryMappedFile.openAndMap(realPathAbs, FileChannel.MapMode.READ_ONLY).use { sendFile(it) }
-        JanusMessage.recycle(recvResponse(throwOnFail = true, "Server failed to receive file: $realPathAbs"))
+
+        val response = recvResponse(throwOnFail = true, "Server failed to receive file: $realPathAbs")
+        if (response.data.size != Long.SIZE_BYTES || ByteBuffer.wrap(response.data).getLong() != nonce) {
+            throw Exception("Server failed to process file: $realPathAbs. Wrong nonce.")
+        }
+        JanusMessage.recycle(response)
+    }
+
+
+    private var nextArchiveSeqId: Long = 1L
+    private val pendingArchiveSequences = mutableSetOf<Long>()
+
+    suspend fun uploadArchive(workspace: Config.WorkspaceConfig, byteBuffer: ByteBuffer) {
+        val timeBeginMillis = System.currentTimeMillis()
+        val archiveSize = byteBuffer.remaining().toLong()
+        val DATA_BLOCK_SIZE = 2L * 1024 * 1024
+
+        val uploadArchiveReq = JanusMessage.create(JanusMessage.UploadArchive.typeCode) as JanusMessage.UploadArchive
+        uploadArchiveReq.archiveSize = byteBuffer.remaining().toLong()
+        val seqId = nextArchiveSeqId++
+        uploadArchiveReq.seqId = seqId
+        send(uploadArchiveReq)
+
+        var sharedByteArray = byteArrayOf()
+        val dataBlockReq = JanusMessage.create(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
+
+        while (byteBuffer.remaining() > 0) {
+            val bytesToSend = minOf(byteBuffer.remaining().toLong(), DATA_BLOCK_SIZE)
+            if (bytesToSend != sharedByteArray.size.toLong())
+                sharedByteArray = ByteArray(bytesToSend.toInt())
+
+            byteBuffer.get(sharedByteArray)
+            dataBlockReq.reset()
+            dataBlockReq.dataBuffer = ByteBuffer.wrap(sharedByteArray)
+            send(dataBlockReq)
+        }
+
+        val response = recvResponse(throwOnFail = true, "Server failed to receive archive")
+        JanusMessage.recycle(dataBlockReq, uploadArchiveReq, response)
+
+        pendingArchiveSequences += seqId
+
+        val timeEndMillis = System.currentTimeMillis()
+        var timeCostMillis = timeEndMillis - timeBeginMillis
+        if (timeCostMillis <= 0)
+            timeCostMillis = 1
+        val speedMBps = archiveSize * 1000 / 1024 / 1024 / timeCostMillis
+        Logger.success("Archive uploaded. Archive size: ${archiveSize / 1024 / 1024}MB. At speed: $speedMBps MB/s")
+    }
+
+
+    /**
+     *
+     * @return Pair(n archives confirmed, m failed). If null, no archive pending.
+     */
+    suspend fun confirmArchives(noBlock: Boolean = false): Pair<Long, Long>? {
+        if (pendingArchiveSequences.isEmpty())
+            return null
+
+        val req = JanusMessage.create(JanusMessage.ConfirmArchives.typeCode) as JanusMessage.ConfirmArchives
+        req.noBlock = noBlock
+        send(req)
+
+        val res = recvResponse(throwOnFail = true, "Server failed to confirm archives")
+        val data = ByteBuffer.wrap(res.data)
+
+        var nSuccess = 0L
+        var nFailed = 0L
+
+        while (data.remaining() >= Long.SIZE_BYTES + Int.SIZE_BYTES) {
+            val seqId = data.getLong()
+            val status = data.getInt()
+            if (!pendingArchiveSequences.contains(seqId))
+                Logger.error("Archive's seq id not found: $seqId")
+            pendingArchiveSequences.remove(seqId)
+            if (status == 0) {
+                nSuccess++
+            }
+            else {
+                nFailed++
+            }
+        }
+
+        JanusMessage.recycle(req, res)
+        return Pair(nSuccess, nFailed)
     }
 }

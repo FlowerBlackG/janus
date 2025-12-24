@@ -33,17 +33,17 @@ It is recommended that you use [Tencent Kona 25](https://github.com/Tencent/Tenc
 Hardware & Software
 
 |                  |                             Client                             |                             Server                             |
-| :--------------: | :------------------------------------------------------------: | :------------------------------------------------------------: |
+| :--------------: | :-------------------------------------------------------------: | :------------------------------------------------------------: |
 |   **OS**   |                   Windows 11 23H2 22631.6199                   |                GNU/Linux 6.6.98-40.2.tl4.x86_64                |
-|  **CPU**  |                            i9-9900                            |                           EPYC 9754                           |
+|  **CPU**  |                             i9-9900                             |                           EPYC 9754                           |
 | **Memory** |                              DDR4                              |                                                                |
-| **Janus** | commit bf594c7f95a2fc46c5e128a39397d8b3e30e827f protocol draft | commit bf594c7f95a2fc46c5e128a39397d8b3e30e827f protocol draft |
-| **rsync** |               version 3.1.2 protocol version 31               |               version 3.2.7 protocol version 31               |
+| **Janus** | commit 295b3dfb8f316d081458d63691c37461ca3de924 protocol draft | commit 295b3dfb8f316d081458d63691c37461ca3de924 protocol draft |
+| **rsync** |                version 3.1.2 protocol version 31                |               version 3.2.7 protocol version 31               |
 
 Statistics
 
 |                  |  Full Sync  |  No change  | 1 file changed |
 | :--------------: | :---------: | :---------: | :------------: |
-|      Janus      | 291 seconds |  3 seconds  |  2.7 seconds  |
+|      Janus      | 201 seconds |  3 seconds  |  2.7 seconds  |
 |      rsync      | 382 seconds | 126 seconds |  119 seconds  |
-| Performance gain |   +31.2%   |   +4100%   |     +4307%     |
+| Performance gain |   +90.04%   |   +4100%   |     +4307%     |

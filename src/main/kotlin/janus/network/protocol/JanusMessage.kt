@@ -224,21 +224,27 @@ sealed class JanusMessage private constructor() {
         }
 
         override val type get() = typeCode
-        override val bodyLength get() = dataBlock.size.toLong()
+        override val bodyLength get() = maxOf(dataBuffer.remaining().toLong(), dataBuffer.position().toLong())
 
-        var dataBlock: ByteArray = byteArrayOf()
+        /**
+         * Exactly the same size as the data you want this DataBlock to hold.
+         */
+        var dataBuffer: ByteBuffer = ByteBuffer.allocate(0)
+        val dataBlock: ByteArray get() = dataBuffer.array()
 
         override fun decodeBody(data: ByteBuffer) {
-            dataBlock = ByteArray(data.remaining())
-            data.get(dataBlock)
+            dataBuffer = ByteBuffer.allocate(data.remaining())
+            data.get(dataBuffer.array())
         }
 
         override fun encodeBody(container: ByteBuffer) {
-            container.put(dataBlock)
+            if (!dataBuffer.hasRemaining())
+                dataBuffer.flip()
+            container.put(dataBuffer)
         }
 
         override fun reset() {
-            dataBlock = byteArrayOf()
+            dataBuffer = ByteBuffer.allocate(0)
         }
     }
 

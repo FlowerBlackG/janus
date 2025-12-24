@@ -211,12 +211,16 @@ private suspend fun globFilesInternal(
  */
 private fun shouldIgnore(relativePath: Path, isDirectory: Boolean, config: Config.IgnoreConfig): Boolean {
     val fs = FileSystems.getDefault()
+    var ignored = false
 
-    for (line in config.lines) {
+    for (rawLine in config.lines) {
+        var line = rawLine.trim()
         if (line.isBlank() || line.startsWith("#"))
             continue
 
-        var pattern = line.trim()
+        val isNegative = line.startsWith("!")
+
+        var pattern = if (isNegative) line.drop(1).trim() else line
         var expectsDirectory = pattern.endsWith("/")
 
         if (expectsDirectory && !isDirectory)
@@ -236,10 +240,12 @@ private fun shouldIgnore(relativePath: Path, isDirectory: Boolean, config: Confi
             else -> "glob:{${pattern},**/${pattern}}"
         }
 
-
-        if (fs.runCatching { getPathMatcher(globPattern).matches(relativePath) }.getOrElse { false })
-            return true
+        fs.runCatching { getPathMatcher(globPattern) }.onSuccess { matcher ->
+            if (matcher.matches(relativePath))
+                ignored = !isNegative
+        }
     }
-    return false
+
+    return ignored
 }
 

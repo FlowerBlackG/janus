@@ -46,7 +46,7 @@ data class Config(
     )
 
     data class IgnoreConfig(
-        var lines: MutableSet<String> = mutableSetOf()
+        var lines: MutableList<String> = mutableListOf()
     )
 }
 

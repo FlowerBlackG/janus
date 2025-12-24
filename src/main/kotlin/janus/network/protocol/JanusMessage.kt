@@ -372,15 +372,23 @@ sealed class JanusMessage private constructor() {
 
         override val type get() = typeCode
         override val bodyLength
-            get() = pathString.length.toLong() + Long.SIZE_BYTES
+            get() = pathBytes.size.toLong() + Long.SIZE_BYTES * 2 + Int.SIZE_BYTES * 2
 
         var fileSize: Long = 0L
 
         var path: Path = Path("")
         val pathString: String
             get() = path.toString().replace('\\', '/')
+        val pathBytes
+            get() = pathString.encodeToByteArray()
+
+        var permBits: Int = 0
+        var nonce: Long = 0L
 
         override fun decodeBody(data: ByteBuffer) {
+            nonce = data.getLong()
+            permBits = data.getInt()
+            data.getInt()  // skip reserved0.
             fileSize = data.getLong()
             val byteArr = ByteArray(data.remaining())
             data.get(byteArr)
@@ -388,12 +396,68 @@ sealed class JanusMessage private constructor() {
         }
 
         override fun encodeBody(container: ByteBuffer) {
+            container.putLong(nonce)
+            container.putInt(permBits)
+            container.putInt(0)  // reserved0.
             container.putLong(fileSize)
-            container.put(pathString.encodeToByteArray())
+            container.put(pathBytes)
         }
 
         override fun reset() {
             path = Path("")
+        }
+    }
+
+
+    class UploadArchive : JanusMessage() {
+        companion object {
+            const val typeCode = 0x2004
+        }
+
+        override val type get() = typeCode
+        override val bodyLength get() = Long.SIZE_BYTES.toLong() + Long.SIZE_BYTES
+
+        var seqId: Long = 0L
+        var archiveSize: Long = 0L
+
+        override fun decodeBody(data: ByteBuffer) {
+            seqId = data.getLong()
+            archiveSize = data.getLong()
+        }
+
+        override fun encodeBody(container: ByteBuffer) {
+            container.putLong(seqId)
+            container.putLong(archiveSize)
+        }
+
+        override fun reset() {
+            seqId = 0L
+            archiveSize = 0L
+        }
+    }
+
+
+
+    class ConfirmArchives : JanusMessage() {
+        companion object {
+            const val typeCode = 0x2005
+        }
+
+        override val type get() = typeCode
+        override val bodyLength get() = Int.SIZE_BYTES.toLong()
+
+        var noBlock: Boolean = false
+
+        override fun decodeBody(data: ByteBuffer) {
+            noBlock = data.getInt() != 0
+        }
+
+        override fun encodeBody(container: ByteBuffer) {
+            container.putInt(if (noBlock) 1 else 0)
+        }
+
+        override fun reset() {
+            noBlock = false
         }
     }
 
@@ -420,6 +484,8 @@ private fun registerMsgTypes() {
     registerMsgType(JanusMessage.FetchFileTree.typeCode) { JanusMessage.FetchFileTree() }
     registerMsgType(JanusMessage.CommitSyncPlan.typeCode) { JanusMessage.CommitSyncPlan() }
     registerMsgType(JanusMessage.UploadFile.typeCode) { JanusMessage.UploadFile() }
+    registerMsgType(JanusMessage.UploadArchive.typeCode) { JanusMessage.UploadArchive() }
+    registerMsgType(JanusMessage.ConfirmArchives.typeCode) { JanusMessage.ConfirmArchives() }
 }
 
 private fun checkAllMsgTypesRegistered() {

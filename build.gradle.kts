@@ -20,6 +20,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-protobuf
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")
 
+    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-io-core
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+
     implementation(kotlin("reflect"))
 
     // https://mvnrepository.com/artifact/org.json/json

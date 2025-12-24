@@ -28,10 +28,10 @@ object protocolDebugger {
         var pos = 0
 
         Logger.debug("-".repeat(48))
-        val header = bytes.tryGetHeader()
+        val header = bytes.tryDecodeHeader()
         var fullPrompt = prompt
         header?.let {
-            fullPrompt += " - ${header.first} (${header.second})"
+            fullPrompt += " - $it"
         }
         Logger.debug(fullPrompt)
 
@@ -87,7 +87,7 @@ object protocolDebugger {
 }
 
 
-private fun ByteBuffer.tryGetHeader(): Pair<String, Long>? {
+private fun ByteBuffer.tryDecodeHeader(): String? {
     val b = this.duplicate()
     if (b.remaining() < JanusMessage.HEADER_LENGTH)
         return null
@@ -120,6 +120,6 @@ private fun ByteBuffer.tryGetHeader(): Pair<String, Long>? {
         }
     }
 
-    return Pair(typeStr, bodyLength)
+    return "$typeStr ($bodyLength : 0x${bodyLength.toHexString().takeLast(8)})"
 }
 

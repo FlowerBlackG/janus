@@ -4,6 +4,7 @@ package io.github.flowerblackg.janus.server
 
 import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.config.ConnectionMode
+import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.AsyncServerSocketWrapper
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
@@ -13,16 +14,16 @@ import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousServerSocketChannel
 
 
-private suspend fun serve(
+private fun serve(
     conn: JanusProtocolConnection,
     config: Config,
     permits: Map<Config.WorkspaceConfig, Mutex>
-): Job = withContext(Dispatchers.IO) {
+): Job {
     val lounge = Lounge(conn, config)
 
     var ws: Config.WorkspaceConfig? = null
 
-    launch {
+    return GlobalCoroutineScopes.IO.launch {
         val resCode = lounge.serve { workspace ->
             val locked = permits[workspace]?.tryLock() ?: false
             if (locked)
@@ -43,14 +44,14 @@ private suspend fun serve(
 }
 
 
-suspend fun runServer(config: Config): Int = withContext(Dispatchers.IO) {
+suspend fun runServer(config: Config): Int {
     Logger.info("Running in server mode")
 
     val serverChannel = try {
         AsynchronousServerSocketChannel.open().bind(InetSocketAddress(config.port!!))
     } catch (e: Exception) {
         Logger.error("Failed to start server: ${e.message}")
-        return@withContext 1
+        return 1
     }
 
     val serverWrapper = AsyncServerSocketWrapper(serverChannel)
@@ -74,5 +75,5 @@ suspend fun runServer(config: Config): Int = withContext(Dispatchers.IO) {
 
     serverWrapper.close()
     Logger.info("Server closed. Bye~~")
-    return@withContext 0
+    return 0
 }

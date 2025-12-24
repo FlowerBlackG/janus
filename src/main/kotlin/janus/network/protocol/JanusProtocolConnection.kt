@@ -277,8 +277,9 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
             dataBlockReq.reset()
             val size = minOf(chunkSize, remaining)
             sharedByteArray = if (sharedByteArray.size == size.toInt()) sharedByteArray else ByteArray(size.toInt())
-            dataBlockReq.dataBlock = sharedByteArray
-            val bytesRead = file.read(ByteBuffer.wrap(sharedByteArray))
+            dataBlockReq.dataBuffer = ByteBuffer.wrap(sharedByteArray)
+            val bytesRead = file.read(dataBlockReq.dataBuffer)
+            dataBlockReq.dataBuffer.flip()
 
             if (bytesRead != size.toInt())
                 throw Exception("Failed to read file: ${file.path}")

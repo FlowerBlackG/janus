@@ -46,6 +46,8 @@ class UploadFileHandler(val ws: Config.WorkspaceConfig) : MessageHandler<JanusMe
         val speedMBps = msg.fileSize * 1000 / 1024 / 1024 / timeCostMillis
 
         Logger.success("File ${msg.path} uploaded. Size ${msg.fileSize / 1024 / 1024} MB, at speed: $speedMBps MB/s")
-        conn.sendResponse(code = 0)
+        val resBody = ByteBuffer.allocate(Long.SIZE_BYTES)
+        resBody.putLong(msg.nonce)
+        conn.sendResponse(code = 0, data = resBody.flip())
     }
 }

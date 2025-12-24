@@ -147,8 +147,12 @@ private fun buildSyncPlan(
 
     // now, we can say that both exists and of same type.
 
-    if (local.type == FileType.FILE && local.lastModifiedMillis + remoteLocalTimeDiffMillis < remote.lastModifiedMillis)
-        return emptyList()
+    if (local.type == FileType.FILE) {
+        return if (local.lastModifiedMillis + remoteLocalTimeDiffMillis < remote.lastModifiedMillis)
+            emptyList()
+        else
+            listOf(makeSyncPlan(file = local, action = SyncPlan.SyncAction.UPLOAD))
+    }
 
     // for directories...
 

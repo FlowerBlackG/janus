@@ -5,13 +5,11 @@ package io.github.flowerblackg.janus
 
 import io.github.flowerblackg.janus.client.runClient
 import io.github.flowerblackg.janus.config.*
+import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.server.runServer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.system.exitProcess
 
 private fun usage(error: String? = null) {
@@ -79,8 +77,7 @@ fun main(args: Array<String>) {
 
     printConfig(config)
 
-    val coroScope = CoroutineScope(Dispatchers.IO)
-    val coroFuture = coroScope.async {
+    val coroFuture = GlobalCoroutineScopes.IO.async {
         when (config.runMode) {
             ConnectionMode.SERVER -> runServer(config)
             ConnectionMode.CLIENT -> runClient(config)

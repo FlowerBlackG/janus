@@ -15,7 +15,11 @@ class MemoryMappedFile(val path: Path) : AutoCloseable {
 
     protected lateinit var fileChannel: FileChannel
     protected lateinit var arena: Arena
-    protected lateinit var segment: MemorySegment
+
+    /**
+     * This is public, but you should use it carefully.
+     */
+    lateinit var segment: MemorySegment
 
     var size: Long = 0
         protected set

@@ -2,15 +2,13 @@
 
 package io.github.flowerblackg.janus.network
 
+import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.protocolDebugger
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.EOFException
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.CompletionHandler
-import java.nio.file.Path
-import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -68,12 +66,26 @@ open class AsyncSocketWrapper(val socketChannel: AsynchronousSocketChannel) : Au
     /**
      * Writes the buffer to the socket.
      */
-    suspend fun write(buffer: ByteBuffer): Int = suspendCancellableCoroutine { continuation ->
+    suspend fun writeSome(buffer: ByteBuffer): Int = suspendCancellableCoroutine { continuation ->
         protocolDebugger.dump(buffer, "SEND")
         socketChannel.write(buffer, null, object : CompletionHandler<Int, Nothing?> {
             override fun completed(result: Int, attachment: Nothing?) = continuation.resume(result)
             override fun failed(exc: Throwable, attachment: Nothing?) = continuation.resumeWithException(exc)
         })
+    }
+
+
+    suspend fun write(buffer: ByteBuffer) {
+        var bytesRemaining = buffer.remaining().toLong()
+        while (bytesRemaining > 0) {
+            val written = writeSome(buffer)
+            if (written <= 0) {
+                Logger.error("Something went wrong when writing to network socket. Written: $written")
+                throw Exception("Failed to write to socket")
+            }
+
+            bytesRemaining -= written
+        }
     }
 
 

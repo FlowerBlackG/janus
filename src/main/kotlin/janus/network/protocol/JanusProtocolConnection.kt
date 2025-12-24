@@ -364,7 +364,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         if (timeCostMillis <= 0)
             timeCostMillis = 1
         val speedMBps = archiveSize * 1000 / 1024 / 1024 / timeCostMillis
-        Logger.success("Archive uploaded. Archive size: ${archiveSize / 1024 / 1024}MB. At speed: $speedMBps MB/s")
+        Logger.success("Archive $seqId uploaded. Archive size: ${archiveSize / 1024 / 1024}MB. At speed: $speedMBps MB/s")
     }
 
 
@@ -372,7 +372,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
      *
      * @return Pair(n archives confirmed, m failed). If null, no archive pending.
      */
-    suspend fun confirmArchives(noBlock: Boolean = false): Pair<Long, Long>? {
+    suspend fun confirmArchives(noBlock: Boolean = false): Pair<List<Long>, List<Long>>? {
         if (pendingArchiveSequences.isEmpty())
             return null
 
@@ -383,8 +383,8 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         val res = recvResponse(throwOnFail = true, "Server failed to confirm archives")
         val data = ByteBuffer.wrap(res.data)
 
-        var nSuccess = 0L
-        var nFailed = 0L
+        val success = mutableListOf<Long>()
+        val failed = mutableListOf<Long>()
 
         while (data.remaining() >= Long.SIZE_BYTES + Int.SIZE_BYTES) {
             val seqId = data.getLong()
@@ -393,14 +393,14 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
                 Logger.error("Archive's seq id not found: $seqId")
             pendingArchiveSequences.remove(seqId)
             if (status == 0) {
-                nSuccess++
+                success += seqId
             }
             else {
-                nFailed++
+                failed += seqId
             }
         }
 
         JanusMessage.recycle(req, res)
-        return Pair(nSuccess, nFailed)
+        return Pair(success, failed)
     }
 }

@@ -157,9 +157,12 @@ private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config
             break
         }
 
-        Logger.success("Confirmed ${confirmResult.first} archives.")
-        if (confirmResult.second != 0L)
-            Logger.error("> And ${confirmResult.second} archives failed.")
+        Logger.success("Confirmed ${confirmResult.first.size} archives.")
+        confirmResult.first.forEach { Logger.success("> Archive Sequence ID: $it") }
+        if (confirmResult.second.isNotEmpty()) {
+            Logger.error("And ${confirmResult.second} archives failed.")
+            confirmResult.second.forEach { Logger.error("> Archive Sequence ID: $it") }
+        }
     }
 }
 

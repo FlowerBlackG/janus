@@ -23,7 +23,8 @@ import kotlin.time.measureTime
 
 
 private const val SMALL_FILE_SIZE_THRESHOLD = 256 * 1024
-private const val SMALL_FILES_HOLDER_FLUSH_THRESHOLD = 128 * 1024 * 1024
+private const val SMALL_FILES_HOLDER_ARCHIVE_SIZE_THRESHOLD = 128 * 1024 * 1024
+private const val SMALL_FILES_HOLDER_N_FILES_THRESHOLD = 1024  // NEVER SET THIS TO 0 OR LOWER.
 
 
 private data class SmallFilesHolder(
@@ -69,7 +70,9 @@ private data class SmallFilesHolder(
     }
 
     fun isNearlyFull(): Boolean {
-        return files.isNotEmpty() && archiveSize >= SMALL_FILES_HOLDER_FLUSH_THRESHOLD
+        val archiveLargeEnough = archiveSize >= SMALL_FILES_HOLDER_ARCHIVE_SIZE_THRESHOLD
+        val nFilesEnough = files.size >= SMALL_FILES_HOLDER_N_FILES_THRESHOLD
+        return archiveLargeEnough || nFilesEnough
     }
 }
 

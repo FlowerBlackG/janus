@@ -7,6 +7,7 @@ import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
@@ -32,8 +33,13 @@ class MemoryMappedFile(val path: Path) : AutoCloseable {
 
     companion object {
         @Throws(IOException::class)
-        fun createAndMap(path: Path, size: Long): MemoryMappedFile {
+        fun createAndMap(path: Path, size: Long, permissionBits: Int? = null): MemoryMappedFile {
             assert(size >= 0) { "Size must be non-negative, but was $size" }
+
+            if (Files.exists(path) && (!Files.isWritable(path) || !Files.isReadable(path))) {
+                path.toFile().setWritable(true, false)
+                path.toFile().setReadable(true, false)
+            }
 
             val mmf = MemoryMappedFile(path = path)
             mmf.size = size
@@ -48,6 +54,8 @@ class MemoryMappedFile(val path: Path) : AutoCloseable {
 
             mmf.arena = Arena.ofShared()
             mmf.segment = mmf.fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, size, mmf.arena)
+
+            permissionBits?.let { path.applyPermissionMask(it) }
 
             return mmf
         }

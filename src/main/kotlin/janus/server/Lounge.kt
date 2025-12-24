@@ -8,9 +8,11 @@ import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import io.github.flowerblackg.janus.server.messagehandlers.CommitSyncPlanHandler
+import io.github.flowerblackg.janus.server.messagehandlers.ConfirmArchivesHandler
 import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
 import io.github.flowerblackg.janus.server.messagehandlers.GetSystemTimeMillisHandler
 import io.github.flowerblackg.janus.server.messagehandlers.MessageHandler
+import io.github.flowerblackg.janus.server.messagehandlers.UploadArchiveHandler
 import io.github.flowerblackg.janus.server.messagehandlers.UploadFileHandler
 
 
@@ -19,13 +21,15 @@ import io.github.flowerblackg.janus.server.messagehandlers.UploadFileHandler
  *
  * Lounge is one time use. You should only call [serve] once.
  */
-class Lounge constructor(
+class Lounge (
     val conn: JanusProtocolConnection,
     val config: Config
 ): AutoCloseable {
 
     protected enum class MessageHandlerLife { ONCE, ETERNAL }
     protected val msgHandlers = mutableMapOf<Int, Pair<MessageHandlerLife, MessageHandler<JanusMessage>>>()
+
+    protected val archiveExtractorPool = ArchiveExtractorPool()
 
 
     protected fun <T: JanusMessage> handle(msgType: Int, life: MessageHandlerLife, handler: MessageHandler<T>) {
@@ -93,6 +97,8 @@ class Lounge constructor(
             return null
         }
 
+        this.archiveExtractorPool.workspace = this.workspace
+
         return Unit
     }
 
@@ -123,6 +129,8 @@ class Lounge constructor(
         handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
         handle(JanusMessage.CommitSyncPlan.typeCode, CommitSyncPlanHandler(workspace))
         handle(JanusMessage.UploadFile.typeCode, UploadFileHandler(workspace))
+        handle(JanusMessage.UploadArchive.typeCode, UploadArchiveHandler(this.archiveExtractorPool))
+        handle(JanusMessage.ConfirmArchives.typeCode, ConfirmArchivesHandler(this.archiveExtractorPool))
 
         while (true) {
             runCatching { recvAndHandleMessage() }.exceptionOrNull()?.let {

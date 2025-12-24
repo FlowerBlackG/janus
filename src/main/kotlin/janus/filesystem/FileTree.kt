@@ -34,6 +34,7 @@ enum class FileType {
 data class FileTree(
     var type: FileType = FileType.OTHER,
     var name: String = "",
+    var fileSize: Long = 0L,
     var children: MutableList<FileTree> = ArrayList(),
     @Transient
     var parent: FileTree? = null,
@@ -173,7 +174,11 @@ private suspend fun globFilesInternal(
         path = relativePath,
         name = current.name,
         lastModifiedMillis = attrs.lastModifiedTime().toMillis(),
-        parent = parent
+        parent = parent,
+        fileSize = when {
+            attrs.isRegularFile -> attrs.size()
+            else -> 0L
+        },
     )
 
     if (node.type == FileType.DIRECTORY) {

@@ -14,6 +14,12 @@ data class SyncPlan(
     val fileType: FileType,
     @Transient
     var path: Path = Path(""),
+
+    /**
+     * If object is deserialized from somewhere, never trust this field.
+     */
+    @Transient
+    var fileSize: Long = 0,
     var action: SyncAction,
     var children: List<SyncPlan> = mutableListOf()
 ) {
@@ -170,6 +176,7 @@ private fun makeSyncPlan(file: FileTree, action: SyncPlan.SyncAction): SyncPlan 
     return SyncPlan(
         name = file.name,
         path = file.path,
+        fileSize = file.fileSize,
         fileType = file.type,
         action = action
     )

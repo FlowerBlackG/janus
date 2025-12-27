@@ -305,7 +305,12 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
     /**
      * @return seq Id of the file.
      */
-    suspend fun uploadFile(filePath: Path, workspace: Config.WorkspaceConfig, asyncAck: Boolean = false): Long {
+    suspend fun uploadFile(
+        filePath: Path,
+        workspace: Config.WorkspaceConfig,
+        asyncAck: Boolean = false,
+        skipRecvResponse: Boolean = false
+    ): Long {
         val realPath = workspace.path.resolve(filePath)
         val realPathAbs = realPath.absolute().normalize()
         if (!realPathAbs.startsWith(workspace.path.absolute().normalize()))
@@ -325,10 +330,11 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
 
         MemoryMappedFile.openAndMap(realPathAbs, FileChannel.MapMode.READ_ONLY).use { sendFile(it) }
 
-        if (asyncAck) {
+        if (asyncAck)
             pendingFileSequences += seqId
+        
+        if (skipRecvResponse)
             return seqId
-        }
 
         val response = recvResponse(throwOnFail = true, "Server failed to receive file: $realPathAbs")
         if (response.data.size != Long.SIZE_BYTES || ByteBuffer.wrap(response.data).getLong() != seqId) {

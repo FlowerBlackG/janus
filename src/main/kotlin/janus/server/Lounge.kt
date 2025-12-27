@@ -108,11 +108,18 @@ class Lounge (
     protected var running = true
 
     /**
+     * Called after authorized. If returns false, lounge will reject the client.
+     *
+     * This is used to block clients or reject them so only limited numbers of client can use one workspace.
+     */
+    var onAuthorized: ((Config.WorkspaceConfig) -> Boolean)? = null
+
+    /**
      * This never throws.
      *
      * @return 0 means client left happily. Otherwise, something went wrong.
      */
-    suspend fun serve(onAuthorized: ((Config.WorkspaceConfig) -> Boolean)? = null): Int {
+    suspend fun serve(): Int {
         if (served) {
             Logger.error("Lounge already served someone else.")
             return 1
@@ -122,10 +129,8 @@ class Lounge (
         Logger.info("Welcome ${conn.socketChannel.remoteAddress} to Lounge.")
         helloAndAuth() ?: return 1
 
-        if (onAuthorized != null) {
-            if (!onAuthorized(this.workspace))
-                return 2
-        }
+        if (onAuthorized?.let { it(this.workspace) } == false)
+            return 2
 
         handle(JanusMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
         handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())

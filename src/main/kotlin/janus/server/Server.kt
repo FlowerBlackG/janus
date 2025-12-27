@@ -24,7 +24,7 @@ private fun serve(
     var ws: Config.WorkspaceConfig? = null
 
     return GlobalCoroutineScopes.IO.launch {
-        val resCode = lounge.serve { workspace ->
+        lounge.onAuthorized = { workspace ->
             val locked = permits[workspace]?.tryLock() ?: false
             if (locked)
                 ws = workspace
@@ -32,6 +32,8 @@ private fun serve(
                 Logger.error("Failed to lock workspace ${workspace.name}. Maybe another connection is using it.")
             locked
         }
+
+        val resCode = lounge.serve()
 
         if (ws != null)
             permits[ws]?.unlock()

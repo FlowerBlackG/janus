@@ -182,9 +182,15 @@ sealed class JanusMessage private constructor() {
 
         var code = 0
         var msg = ByteArray(0)
-        val msgString: String
+        var msgString: String
             get() = String(msg, StandardCharsets.UTF_8)
-        val data: ByteArray get() = msg
+            set(value) {
+                this.msg = value.toByteArray(StandardCharsets.UTF_8)
+            }
+        var data: ByteArray get() = msg
+            set(value) {
+                this.msg = value
+            }
 
         val success get() = code == 0
 

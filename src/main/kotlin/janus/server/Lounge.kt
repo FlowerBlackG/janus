@@ -7,6 +7,7 @@ import io.github.flowerblackg.janus.config.ConnectionMode
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janus.server.messagehandlers.ByeHandler
 import io.github.flowerblackg.janus.server.messagehandlers.CommitSyncPlanHandler
 import io.github.flowerblackg.janus.server.messagehandlers.ConfirmArchivesHandler
 import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
@@ -104,6 +105,7 @@ class Lounge (
 
 
     protected var served = false
+    protected var running = true
 
     /**
      * This never throws.
@@ -131,18 +133,27 @@ class Lounge (
         handle(JanusMessage.UploadFile.typeCode, UploadFileHandler(workspace))
         handle(JanusMessage.UploadArchive.typeCode, UploadArchiveHandler(this.archiveExtractorPool))
         handle(JanusMessage.ConfirmArchives.typeCode, ConfirmArchivesHandler(this.archiveExtractorPool))
+        handle(JanusMessage.Bye.typeCode, ByeHandler(this))
 
-        while (true) {
+        running = true
+        while (running) {
             runCatching { recvAndHandleMessage() }.exceptionOrNull()?.let {
                 Logger.warn("Exception: ${it.message}. Shutting down Lounge...")
-                break
+                return 3
             }
         }
 
         return 0
     }
 
+
+    fun stop() {
+        this.running = false
+    }
+
+
     override fun close() {
+        this.stop()
         msgHandlers.clear()
         conn.close()
     }

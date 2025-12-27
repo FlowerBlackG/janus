@@ -214,6 +214,8 @@ suspend fun runClient(config: Config): Int {
         conn.commitSyncPlan(syncPlans)
         Logger.info("Plan committed. Ready to send files.")
         syncPlans.forEach { uploadFiles(conn = conn, workspace = workspace, plan = it) }
+
+        conn.bye()
         Logger.success("Sync complete.")
     }
 

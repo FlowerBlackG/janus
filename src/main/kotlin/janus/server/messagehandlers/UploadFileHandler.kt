@@ -10,10 +10,14 @@ import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import java.nio.ByteBuffer
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.absolute
 import kotlin.io.path.name
 
-class UploadFileHandler(val ws: Config.WorkspaceConfig) : MessageHandler<JanusMessage.UploadFile> {
+class UploadFileHandler(
+    val ws: Config.WorkspaceConfig,
+    val pendingACKsHolder: ConcurrentLinkedQueue<Pair<Long, Int>>
+) : MessageHandler<JanusMessage.UploadFile> {
 
     override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage.UploadFile) {
         val path = ws.path.resolve(msg.path)
@@ -54,6 +58,12 @@ class UploadFileHandler(val ws: Config.WorkspaceConfig) : MessageHandler<JanusMe
         Logger.success("File ${msg.path} uploaded. Size ${msg.fileSize / 1024 / 1024} MB, at speed: $speedMBps MB/s")
         val resBody = ByteBuffer.allocate(Long.SIZE_BYTES)
         resBody.putLong(msg.seqId)
+
+        if (msg.asyncAck) {
+            pendingACKsHolder.add(Pair(msg.seqId, 0))
+            return
+        }
+
         conn.sendResponse(code = 0, data = resBody.flip())
     }
 }

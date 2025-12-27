@@ -10,11 +10,13 @@ import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import io.github.flowerblackg.janus.server.messagehandlers.ByeHandler
 import io.github.flowerblackg.janus.server.messagehandlers.CommitSyncPlanHandler
 import io.github.flowerblackg.janus.server.messagehandlers.ConfirmArchivesHandler
+import io.github.flowerblackg.janus.server.messagehandlers.ConfirmFilesHandler
 import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
 import io.github.flowerblackg.janus.server.messagehandlers.GetSystemTimeMillisHandler
 import io.github.flowerblackg.janus.server.messagehandlers.MessageHandler
 import io.github.flowerblackg.janus.server.messagehandlers.UploadArchiveHandler
 import io.github.flowerblackg.janus.server.messagehandlers.UploadFileHandler
+import java.util.concurrent.ConcurrentLinkedQueue
 
 
 /**
@@ -31,6 +33,11 @@ class Lounge (
     protected val msgHandlers = mutableMapOf<Int, Pair<MessageHandlerLife, MessageHandler<JanusMessage>>>()
 
     protected val archiveExtractorPool = ArchiveExtractorPool()
+
+    /**
+     * For each member, Pair's first is seqId, Pair's second indicates success (zero) or not (non-zero).
+     */
+    protected val uploadFilePendingACKs = ConcurrentLinkedQueue<Pair<Long, Int>>()
 
 
     protected fun <T: JanusMessage> handle(msgType: Int, life: MessageHandlerLife, handler: MessageHandler<T>) {
@@ -135,9 +142,10 @@ class Lounge (
         handle(JanusMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
         handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
         handle(JanusMessage.CommitSyncPlan.typeCode, CommitSyncPlanHandler(workspace))
-        handle(JanusMessage.UploadFile.typeCode, UploadFileHandler(workspace))
+        handle(JanusMessage.UploadFile.typeCode, UploadFileHandler(workspace, uploadFilePendingACKs))
         handle(JanusMessage.UploadArchive.typeCode, UploadArchiveHandler(this.archiveExtractorPool))
         handle(JanusMessage.ConfirmArchives.typeCode, ConfirmArchivesHandler(this.archiveExtractorPool))
+        handle(JanusMessage.ConfirmFiles.typeCode, ConfirmFilesHandler(uploadFilePendingACKs))
         handle(JanusMessage.Bye.typeCode, ByeHandler(this))
 
         running = true

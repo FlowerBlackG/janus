@@ -300,11 +300,12 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
 
 
     var uploadFileNextSeqId = 1L
+    private val pendingFileSequences = mutableSetOf<Long>()
 
     /**
      * @return seq Id of the file.
      */
-    suspend fun uploadFile(filePath: Path, workspace: Config.WorkspaceConfig): Long {
+    suspend fun uploadFile(filePath: Path, workspace: Config.WorkspaceConfig, asyncAck: Boolean = false): Long {
         val realPath = workspace.path.resolve(filePath)
         val realPathAbs = realPath.absolute().normalize()
         if (!realPathAbs.startsWith(workspace.path.absolute().normalize()))
@@ -316,6 +317,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         uploadFileReq.fileSize = Files.size(realPathAbs)
         uploadFileReq.permBits = realPath.getPermissionMask()
         uploadFileReq.seqId = seqId
+        uploadFileReq.asyncAck = asyncAck
 
         send(uploadFileReq)
 
@@ -323,9 +325,14 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
 
         MemoryMappedFile.openAndMap(realPathAbs, FileChannel.MapMode.READ_ONLY).use { sendFile(it) }
 
+        if (asyncAck) {
+            pendingFileSequences += seqId
+            return seqId
+        }
+
         val response = recvResponse(throwOnFail = true, "Server failed to receive file: $realPathAbs")
         if (response.data.size != Long.SIZE_BYTES || ByteBuffer.wrap(response.data).getLong() != seqId) {
-            throw Exception("Server failed to process file: $realPathAbs. Wrong nonce.")
+            throw Exception("Server failed to process file: $realPathAbs. Wrong seqId.")
         }
         JanusMessage.recycle(response)
         return seqId
@@ -378,6 +385,36 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
      *
      * @return Pair(n archives confirmed, m failed). If null, no archive pending.
      */
+    protected fun decodeConfirmMessage(bytes: ByteArray, seqContainer: MutableSet<Long>? = null): Pair<List<Long>, List<Long>> {
+        val data = ByteBuffer.wrap(bytes)
+
+        val success = mutableListOf<Long>()
+        val failed = mutableListOf<Long>()
+
+        while (data.remaining() >= Long.SIZE_BYTES + Int.SIZE_BYTES) {
+            val seqId = data.getLong()
+            val status = data.getInt()
+            if (seqContainer != null) {
+                if (!seqContainer.contains(seqId))
+                    Logger.error("Archive's seq id not found: $seqId")
+                seqContainer.remove(seqId)
+            }
+            if (status == 0) {
+                success += seqId
+            }
+            else {
+                failed += seqId
+            }
+        }
+
+        return Pair(success, failed)
+    }
+
+
+    /**
+     *
+     * @return Pair(n archives confirmed, m failed). If null, no archive pending.
+     */
     suspend fun confirmArchives(noBlock: Boolean = false): Pair<List<Long>, List<Long>>? {
         if (pendingArchiveSequences.isEmpty())
             return null
@@ -387,27 +424,28 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         send(req)
 
         val res = recvResponse(throwOnFail = true, "Server failed to confirm archives")
-        val data = ByteBuffer.wrap(res.data)
-
-        val success = mutableListOf<Long>()
-        val failed = mutableListOf<Long>()
-
-        while (data.remaining() >= Long.SIZE_BYTES + Int.SIZE_BYTES) {
-            val seqId = data.getLong()
-            val status = data.getInt()
-            if (!pendingArchiveSequences.contains(seqId))
-                Logger.error("Archive's seq id not found: $seqId")
-            pendingArchiveSequences.remove(seqId)
-            if (status == 0) {
-                success += seqId
-            }
-            else {
-                failed += seqId
-            }
-        }
-
+        val ret = decodeConfirmMessage(res.data, pendingArchiveSequences)
         JanusMessage.recycle(req, res)
-        return Pair(success, failed)
+        return ret
+    }
+
+
+    /**
+     * @return Pair(n archives confirmed, m failed). If null, no file pending.
+     */
+    suspend fun confirmFiles(noBlock: Boolean = false): Pair<List<Long>, List<Long>>? {
+        require(!noBlock) { "no block is NOT supported yet." }
+
+        if (pendingFileSequences.isEmpty())
+            return null
+        val req = JanusMessage.create(JanusMessage.ConfirmFiles.typeCode) as JanusMessage.ConfirmFiles
+        req.noBlock = noBlock
+        send(req)
+
+        val res = recvResponse(throwOnFail = true, "Server failed to confirm files")
+        val ret = decodeConfirmMessage(res.data, pendingFileSequences)
+        JanusMessage.recycle(req, res)
+        return ret
     }
 
 

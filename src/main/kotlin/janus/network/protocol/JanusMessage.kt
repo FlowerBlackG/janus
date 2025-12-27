@@ -398,13 +398,14 @@ sealed class JanusMessage private constructor() {
         val pathBytes
             get() = pathString.encodeToByteArray()
 
-        var permBits: Int = 0
         var seqId: Long = 0L
+        var permBits: Int = 0
+        var asyncAck: Boolean = false
 
         override fun decodeBody(data: ByteBuffer) {
             seqId = data.getLong()
             permBits = data.getInt()
-            data.getInt()  // skip reserved0.
+            asyncAck = data.getInt() != 0
             fileSize = data.getLong()
             val byteArr = ByteArray(data.remaining())
             data.get(byteArr)
@@ -414,7 +415,7 @@ sealed class JanusMessage private constructor() {
         override fun encodeBody(container: ByteBuffer) {
             container.putLong(seqId)
             container.putInt(permBits)
-            container.putInt(0)  // reserved0.
+            container.putInt(if (asyncAck) 1 else 0)
             container.putLong(fileSize)
             container.put(pathBytes)
         }
@@ -477,6 +478,30 @@ sealed class JanusMessage private constructor() {
         }
     }
 
+
+
+    class ConfirmFiles : JanusMessage() {
+        companion object {
+            const val typeCode = 0x2006
+        }
+
+        override val type get() = typeCode
+        override val bodyLength get() = Int.SIZE_BYTES.toLong()
+
+        var noBlock: Boolean = false
+
+        override fun decodeBody(data: ByteBuffer) {
+            noBlock = data.getInt() != 0
+        }
+
+        override fun encodeBody(container: ByteBuffer) {
+            container.putInt(if (noBlock) 1 else 0)
+        }
+
+        override fun reset() {
+            noBlock = false
+        }
+    }
 }
 
 
@@ -503,6 +528,7 @@ private fun registerMsgTypes() {
     registerMsgType(JanusMessage.UploadFile.typeCode) { JanusMessage.UploadFile() }
     registerMsgType(JanusMessage.UploadArchive.typeCode) { JanusMessage.UploadArchive() }
     registerMsgType(JanusMessage.ConfirmArchives.typeCode) { JanusMessage.ConfirmArchives() }
+    registerMsgType(JanusMessage.ConfirmFiles.typeCode) { JanusMessage.ConfirmFiles() }
 }
 
 private fun checkAllMsgTypesRegistered() {

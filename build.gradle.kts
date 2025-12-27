@@ -28,6 +28,11 @@ dependencies {
     // https://mvnrepository.com/artifact/org.json/json
     implementation("org.json:json:20250517")
 
+    // https://mvnrepository.com/artifact/io.netty/netty-all
+    implementation("io.netty:netty-all:4.2.9.Final")
+    // https://mvnrepository.com/artifact/io.netty/netty-tcnative-boringssl-static
+    implementation("io.netty:netty-tcnative-boringssl-static:2.0.74.Final")
+
     testImplementation(kotlin("test"))
 }
 

@@ -5,7 +5,7 @@ package io.github.flowerblackg.janus.server
 import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
-import io.github.flowerblackg.janus.filesystem.moveFile
+import io.github.flowerblackg.janus.filesystem.FSUtils
 import io.github.flowerblackg.janus.logging.Logger
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -81,7 +81,7 @@ class ArchiveExtractorPool {
                             reader.readToSegment(mmf.segment, fileDataSize)
                         }
 
-                        moveFile(tmpPath, outFile, deleteSrcOnFailure = true)
+                        FSUtils.moveFile(tmpPath, outFile, deleteSrcOnFailure = true)
 
                         Logger.success("Extracted: $relativePath ($fileDataSize bytes)")
                     }

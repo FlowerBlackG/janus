@@ -3,6 +3,7 @@
 package io.github.flowerblackg.janus.server.messagehandlers
 
 import io.github.flowerblackg.janus.config.Config
+import io.github.flowerblackg.janus.filesystem.FSUtils
 import io.github.flowerblackg.janus.filesystem.FileType
 import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.logging.Logger
@@ -97,8 +98,18 @@ class CommitSyncPlanHandler(val workspace: Config.WorkspaceConfig) : MessageHand
 
         if (plan.action == SyncPlan.SyncAction.DELETE_REMOTE) {
             Logger.info("[DELETE] ${plan.path.toAbsolutePath().normalize()}")
-            if (Files.exists(plan.path))
-                plan.path.toFile().deleteRecursively()
+            val relativePath = workspace.path.relativize(plan.path)
+            if (!Files.exists(plan.path))
+                return
+
+            val protectList = workspace.filter.protect
+            val isDir = plan.fileType == FileType.DIRECTORY
+            if (FSUtils.shouldIgnore(relativePath, isDirectory = isDir, ignoreList = protectList)) {
+                Logger.info("> Ignored due to protect rule.")
+                return
+            }
+
+            plan.path.toFile().deleteRecursively()
         }
         else if (plan.action == SyncPlan.SyncAction.NONE) {
             // pass

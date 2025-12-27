@@ -19,13 +19,15 @@ import kotlin.io.encoding.Base64
 
 // --- Data Classes ---
 
+/**
+ * Loaded from user written json file.
+ */
 @Serializable
 data class AppConfig(
     val mode: ConnectionMode,
     val port: Int? = null,
     val host: String? = null,
-    val ignore: IgnoreConfig? = null,
-    val dangling: DanglingPolicy? = null,
+    val filter: FilterConfig? = null,
     val secret: SecretConfig? = null,
     val workspaces: List<WorkspaceConfig> = emptyList()
 ) {
@@ -63,9 +65,10 @@ data class AppConfig(
 }
 
 @Serializable
-data class IgnoreConfig(
-    val lines: List<String> = emptyList(),
-    val override: Boolean? = null
+data class FilterConfig(
+    val override: Boolean? = null,
+    val ignore: List<String> = emptyList(),
+    val protect: List<String> = emptyList(),
 )
 
 @Serializable
@@ -74,8 +77,7 @@ data class WorkspaceConfig(
     val role: ConnectionMode,
     val path: String,
     val secret: SecretConfig? = null,
-    val ignore: IgnoreConfig? = null,
-    val dangling: DanglingPolicy? = null,
+    val filter: FilterConfig? = null,
     val host: String? = null,
     val port: Int? = null,
 )
@@ -164,12 +166,6 @@ enum class ConnectionMode {
 }
 object ConnectionModeSerializer : CaseInsensitiveEnumSerializer<ConnectionMode>(ConnectionMode::class.java, ConnectionMode.values())
 
-// Dangling Policy (Remove/Keep/Panic)
-@Serializable(with = DanglingPolicySerializer::class)
-enum class DanglingPolicy {
-    REMOVE, KEEP, PANIC
-}
-object DanglingPolicySerializer : CaseInsensitiveEnumSerializer<DanglingPolicy>(DanglingPolicy::class.java, DanglingPolicy.values())
 
 // Secret Type
 @Serializable(with = SecretTypeSerializer::class)

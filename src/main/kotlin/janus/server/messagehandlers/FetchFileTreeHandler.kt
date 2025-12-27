@@ -14,7 +14,7 @@ class FetchFileTreeHandler(val workspace: Config.WorkspaceConfig) : MessageHandl
     override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage.FetchFileTree) {
         val fileTree: FileTree
         val globDuration = measureTime {
-            fileTree = workspace.path.globFilesRelative(workspace.ignore) ?: throw Exception("Failed to fetch file tree.")
+            fileTree = workspace.path.globFilesRelative(workspace.filter.ignore) ?: throw Exception("Failed to fetch file tree.")
         }
 
         val encoded: ByteArray

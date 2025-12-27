@@ -186,7 +186,7 @@ suspend fun runClient(config: Config): Int {
         val networkRoundtripMillis = System.currentTimeMillis() - localTimeMillis
         val serverFileTreePromise = GlobalCoroutineScopes.IO.async { conn.fetchFileTree(workspace.path) }
         val localFileTreePromise = GlobalCoroutineScopes.IO.async {
-            workspace.path.globFilesRelative(ignoreConfig = workspace.ignore)
+            workspace.path.globFilesRelative(workspace.filter.ignore)
         }
 
         val svrToLocalTimeDiffMillis = serverTimeMillis - localTimeMillis - networkRoundtripMillis / 2

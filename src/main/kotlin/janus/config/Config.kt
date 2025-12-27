@@ -33,8 +33,7 @@ data class Config(
         var crypto: CryptoConfig = CryptoConfig(),
         var mode: ConnectionMode = ConnectionMode.SERVER,
         var path: Path = Path.of(""),
-        var ignore: IgnoreConfig = IgnoreConfig(),
-        var danglingPolicy: DanglingPolicy = DanglingPolicy.KEEP,
+        var filter: FilterConfig = FilterConfig(),
         /** Nonnull for client mode. */
         var host: InetAddress? = null,
         /** Nonnull for client mode. */
@@ -45,8 +44,9 @@ data class Config(
         var aes: AesHelper? = null,
     )
 
-    data class IgnoreConfig(
-        var lines: MutableList<String> = mutableListOf()
+    data class FilterConfig(
+        var ignore: MutableList<String> = mutableListOf(),
+        var protect: MutableList<String> = mutableListOf(),
     )
 }
 
@@ -170,20 +170,9 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
 private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult) {
     val config = result.config
 
-    val globalDanglingPolicy = rawConfig.values["--dangling"]?.let {
-        try {
-            DanglingPolicy.valueOf(it.uppercase())
-        } catch (e: Exception) {
-            result.messages.add(LoadConfigMessage(
-                "Dangling policy is not valid from commandline.",
-                LoadConfigMessage.Level.WARN
-            ))
-            null
-        }
-    } ?: appConfig?.dangling ?: DanglingPolicy.KEEP
-
-    val globalIgnoreLists = Config.IgnoreConfig()
-    appConfig?.ignore?.lines?.let { globalIgnoreLists.lines.addAll(it) }
+    val globalFilterConfig = Config.FilterConfig()
+    appConfig?.filter?.ignore?.let { globalFilterConfig.ignore.addAll(it) }
+    appConfig?.filter?.protect?.let { globalFilterConfig.protect.addAll(it) }
 
     val globalCryptoConfig = appConfig?.secret?.toCryptoConfig() ?: Config.CryptoConfig(aes = null)
 
@@ -195,7 +184,6 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             name = appConfigWorkspace.name,
             path = Path(appConfigWorkspace.path),
             mode = appConfigWorkspace.role,
-            danglingPolicy = appConfigWorkspace.dangling ?: globalDanglingPolicy,
             crypto = appConfigWorkspace.secret?.toCryptoConfig() ?: globalCryptoConfig,
             port = appConfigWorkspace.port ?: config.port,
         )
@@ -223,10 +211,12 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
         }
 
         // load ignore config
-        appConfigWorkspace.ignore?.lines?.let { workspace.ignore.lines.addAll(it) }
+        appConfigWorkspace.filter?.ignore?.let { workspace.filter.ignore.addAll(it) }
+        appConfigWorkspace.filter?.protect?.let { workspace.filter.protect.addAll(it) }
 
-        if (appConfigWorkspace.ignore == null || appConfigWorkspace.ignore.override == false) {
-            workspace.ignore.lines.addAll(globalIgnoreLists.lines)
+        if (appConfigWorkspace.filter?.override != true) {
+            workspace.filter.ignore.addAll(globalFilterConfig.ignore)
+            workspace.filter.protect.addAll(globalFilterConfig.protect)
         }
 
         config.workspaces[Pair(workspace.mode, workspace.name)] = workspace
@@ -261,9 +251,8 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             name = rawCfgWorkspace,
             path = rawCfgPath,
             mode = config.runMode,
-            danglingPolicy = globalDanglingPolicy,
             crypto = Config.CryptoConfig(aes = aesHelper),
-            ignore = globalIgnoreLists,
+            filter = globalFilterConfig,
             port = config.port,
             host = config.host,
         )

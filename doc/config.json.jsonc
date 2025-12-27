@@ -15,10 +15,19 @@
     "port": 3000,
     
     // optional.
-    "ignore": {
-        "lines": [
+    "filter": {
+        // optional.
+        // for server: files under ignore will not be listed to client.
+        // for client: files under ignore will not be sent to server.
+        "ignore": [
             "dist",
             "*.tmp"
+            // ...  in .gitignore format.
+        ],
+        // optional. configure on server side. protect from being deleted.
+        "protect": [
+            "build",
+            "dist"
             // ...  in .gitignore format.
         ]
     },
@@ -28,9 +37,6 @@
         "type": "",   // "string" or "base64" or "file-string" or "file-base64"
         "value": ""
     },
-
-    // client only. optional. "remove" or "keep" or "panic". defaults to "keep".
-    "dangling": "",
 
     // each "workspace" is a folder.
     // if only one workspace configured, it will be selected by default.
@@ -49,20 +55,20 @@
                 "value": ""
             },
 
-            // for server: files under ignore will not be listed to client.
-            // for client: files under ignore will not be sent to server.
-            "ignore": {
+            "filter": {
                 // if true, this ignore overrides parent. else, merge. defaults to true.
                 "override": true,
-                "lines": [
+                "ignore": [
                     "dist",
                     "*.tmp"
                     // ...  in .gitignore format.
+                ],
+                "protect": [
+                    "build",
+                    "dist"
+                    // ...  in .gitignore format.
                 ]
             },
-
-            // optional. client only. if set, override parent.
-            "dangling": "",
 
             "host": "127.0.0.1",
             "port": 3000

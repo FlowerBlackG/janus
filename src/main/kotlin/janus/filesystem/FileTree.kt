@@ -135,9 +135,9 @@ suspend fun Path.globFiles(): FileTree? {
 }
 
 
-suspend fun Path.globFilesRelative(ignoreConfig: Config.IgnoreConfig? = null): FileTree? {
+suspend fun Path.globFilesRelative(ignoreList: Iterable<String>? = null): FileTree? {
     val rootPath = this@globFilesRelative.toAbsolutePath()
-    return globFilesInternal(rootPath, rootPath, null, ignoreConfig)
+    return globFilesInternal(rootPath, rootPath, null, ignoreList)
 }
 
 
@@ -145,7 +145,7 @@ private suspend fun globFilesInternal(
     root: Path?,
     current: Path,
     parent: FileTree? = null,
-    ignoreConfig: Config.IgnoreConfig? = null
+    ignoreList: Iterable<String>? = null
 ): FileTree? {
 
     val attrs = try {
@@ -158,7 +158,7 @@ private suspend fun globFilesInternal(
     val relativePath = root?.relativize(current.toAbsolutePath()) ?: current
 
     // Check ignore.
-    if (ignoreConfig != null && shouldIgnore(relativePath, attrs.isDirectory, ignoreConfig)) {
+    if (ignoreList != null && FSUtils.shouldIgnore(relativePath, attrs.isDirectory, ignoreList)) {
         return null
     }
 
@@ -189,10 +189,10 @@ private suspend fun globFilesInternal(
         }
 
         val children = if (childPaths.size < 16) {
-            childPaths.map { globFilesInternal(root, it, node, ignoreConfig) }
+            childPaths.map { globFilesInternal(root, it, node, ignoreList) }
         } else {
             childPaths.map {
-                GlobalCoroutineScopes.IO.async { globFilesInternal(root, it, node, ignoreConfig) }
+                GlobalCoroutineScopes.IO.async { globFilesInternal(root, it, node, ignoreList) }
             }.awaitAll()
         }
 
@@ -201,51 +201,3 @@ private suspend fun globFilesInternal(
 
     return node
 }
-
-
-/**
- * Helper to check if a relative path matches the ignore configuration.
- * Adapts basic .gitignore syntax to Java PathMatchers.
- *
- * @author Google Gemini 3.0 Pro
- */
-private fun shouldIgnore(relativePath: Path, isDirectory: Boolean, config: Config.IgnoreConfig): Boolean {
-    val fs = FileSystems.getDefault()
-    var ignored = false
-
-    for (rawLine in config.lines) {
-        var line = rawLine.trim()
-        if (line.isBlank() || line.startsWith("#"))
-            continue
-
-        val isNegative = line.startsWith("!")
-
-        var pattern = if (isNegative) line.drop(1).trim() else line
-        var expectsDirectory = pattern.endsWith("/")
-
-        if (expectsDirectory && !isDirectory)
-            continue
-
-        // Handle directory specific ignores (simple check)
-        // If pattern ends with /, it expects a directory, but here we simply match the string prefix
-        if (expectsDirectory) {
-             pattern = pattern.dropLast(1)
-        }
-
-        // Convert gitignore syntax to glob
-        val globPattern = when {
-            // Absolute path relative to root (e.g., /build)
-            pattern.startsWith("/") -> "glob:${pattern.drop(1)}"
-            // Recursive match (e.g., *.class or build/)
-            else -> "glob:{${pattern},**/${pattern}}"
-        }
-
-        fs.runCatching { getPathMatcher(globPattern) }.onSuccess { matcher ->
-            if (matcher.matches(relativePath))
-                ignored = !isNegative
-        }
-    }
-
-    return ignored
-}
-

@@ -3,8 +3,8 @@
 package io.github.flowerblackg.janus.server.messagehandlers
 
 import io.github.flowerblackg.janus.config.Config
+import io.github.flowerblackg.janus.filesystem.FSUtils
 import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
-import io.github.flowerblackg.janus.filesystem.moveFile
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
@@ -43,7 +43,7 @@ class UploadFileHandler(val ws: Config.WorkspaceConfig) : MessageHandler<JanusMe
             }
         }
 
-        moveFile(tmpPath, absPath, deleteSrcOnFailure = true)
+        FSUtils.moveFile(tmpPath, absPath, deleteSrcOnFailure = true)
 
         val endTimeMillis = System.currentTimeMillis()
         var timeCostMillis = endTimeMillis - beginTimeMillis

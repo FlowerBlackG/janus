@@ -299,18 +299,23 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
     }
 
 
-    suspend fun uploadFile(filePath: Path, workspace: Config.WorkspaceConfig) {
+    var uploadFileNextSeqId = 1L
+
+    /**
+     * @return seq Id of the file.
+     */
+    suspend fun uploadFile(filePath: Path, workspace: Config.WorkspaceConfig): Long {
         val realPath = workspace.path.resolve(filePath)
         val realPathAbs = realPath.absolute().normalize()
         if (!realPathAbs.startsWith(workspace.path.absolute().normalize()))
             throw Exception("File path is not in workspace: $realPath")
 
-        val nonce = Random.nextLong()
+        val seqId = uploadFileNextSeqId++
         val uploadFileReq = JanusMessage.create(JanusMessage.UploadFile.typeCode) as JanusMessage.UploadFile
         uploadFileReq.path = filePath
         uploadFileReq.fileSize = Files.size(realPathAbs)
         uploadFileReq.permBits = realPath.getPermissionMask()
-        uploadFileReq.nonce = nonce
+        uploadFileReq.seqId = seqId
 
         send(uploadFileReq)
 
@@ -319,10 +324,11 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         MemoryMappedFile.openAndMap(realPathAbs, FileChannel.MapMode.READ_ONLY).use { sendFile(it) }
 
         val response = recvResponse(throwOnFail = true, "Server failed to receive file: $realPathAbs")
-        if (response.data.size != Long.SIZE_BYTES || ByteBuffer.wrap(response.data).getLong() != nonce) {
+        if (response.data.size != Long.SIZE_BYTES || ByteBuffer.wrap(response.data).getLong() != seqId) {
             throw Exception("Server failed to process file: $realPathAbs. Wrong nonce.")
         }
         JanusMessage.recycle(response)
+        return seqId
     }
 
 

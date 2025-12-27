@@ -393,10 +393,10 @@ sealed class JanusMessage private constructor() {
             get() = pathString.encodeToByteArray()
 
         var permBits: Int = 0
-        var nonce: Long = 0L
+        var seqId: Long = 0L
 
         override fun decodeBody(data: ByteBuffer) {
-            nonce = data.getLong()
+            seqId = data.getLong()
             permBits = data.getInt()
             data.getInt()  // skip reserved0.
             fileSize = data.getLong()
@@ -406,7 +406,7 @@ sealed class JanusMessage private constructor() {
         }
 
         override fun encodeBody(container: ByteBuffer) {
-            container.putLong(nonce)
+            container.putLong(seqId)
             container.putInt(permBits)
             container.putInt(0)  // reserved0.
             container.putLong(fileSize)

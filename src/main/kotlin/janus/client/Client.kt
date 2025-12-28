@@ -14,6 +14,7 @@ import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection.Rol
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
@@ -37,8 +38,8 @@ private fun sumFilesSize(plans: Collection<SyncPlan>): Long {
 }
 
 
-private suspend fun uploadArchive(ws: Config.WorkspaceConfig, conn: JanusProtocolConnection, byteBuf: ByteBuffer) {
-    conn.uploadArchive(ws, byteBuf)
+private suspend fun uploadArchive(conn: JanusProtocolConnection, byteBuf: ByteBuffer, skipRecvResponse: Boolean) {
+    conn.uploadArchive(byteBuf, skipRecvResponse = skipRecvResponse)
 }
 
 
@@ -61,6 +62,9 @@ private suspend fun confirmAllArchives(conn: JanusProtocolConnection) {
 
 
 private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config.WorkspaceConfig, plan: SyncPlan) {
+    val uploadFileSeqIdChannel = Channel<Long?>()
+    val uploadFileACKsReceiver = UploadFileResponseReceiver(conn = conn, seqIdChannel = uploadFileSeqIdChannel)
+
     var pendingPlans = Pair(mutableListOf(plan), mutableListOf<SyncPlan>())
 
     var smallFilesHolder = SmallFilesHolder(workspace)
@@ -78,7 +82,8 @@ private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config
                     continue
                 }
 
-                uploadArchive(workspace, conn, job.await())
+                uploadArchive(conn, job.await(), skipRecvResponse = true)
+                uploadFileSeqIdChannel.send(null)
             }
             archiveJobs.clear()
             archiveJobs.addAll(archiveJobsTmpHolder)
@@ -99,7 +104,8 @@ private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config
                 continue
             }
 
-            conn.uploadFile(filePath = plan.path, workspace = workspace)
+            val seqId = conn.uploadFile(filePath = plan.path, workspace = workspace, asyncAck = false, skipRecvResponse = true)
+            uploadFileSeqIdChannel.send(seqId)
         }
 
         pendingPlans.first.clear()
@@ -108,10 +114,16 @@ private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config
 
     if (smallFilesHolder.files.isNotEmpty())
         archiveJobs += GlobalCoroutineScopes.IO.async { smallFilesHolder.toByteBuffer() }
-    for (byteBuff in archiveJobs.awaitAll())
-        uploadArchive(workspace, conn, byteBuff)
+    for (byteBuff in archiveJobs.awaitAll()) {
+        uploadArchive(conn, byteBuff, skipRecvResponse = true)
+        uploadFileSeqIdChannel.send(null)
+    }
 
-    // Wait for all archives.
+    // Wait for all files to complete.
+    uploadFileSeqIdChannel.close()
+    uploadFileACKsReceiver.join()
+
+    // Wait for all archives to complete.
     confirmAllArchives(conn)
 }
 

@@ -299,7 +299,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
     }
 
 
-    var uploadFileNextSeqId = 1L
+    var nextSeqId = 1L
     private val pendingFileSequences = mutableSetOf<Long>()
 
     /**
@@ -316,7 +316,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         if (!realPathAbs.startsWith(workspace.path.absolute().normalize()))
             throw Exception("File path is not in workspace: $realPath")
 
-        val seqId = uploadFileNextSeqId++
+        val seqId = nextSeqId++
         val uploadFileReq = JanusMessage.create(JanusMessage.UploadFile.typeCode) as JanusMessage.UploadFile
         uploadFileReq.path = filePath
         uploadFileReq.fileSize = Files.size(realPathAbs)
@@ -344,18 +344,16 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         return seqId
     }
 
-
-    private var nextArchiveSeqId: Long = 1L
     private val pendingArchiveSequences = mutableSetOf<Long>()
 
-    suspend fun uploadArchive(workspace: Config.WorkspaceConfig, byteBuffer: ByteBuffer) {
+    suspend fun uploadArchive(byteBuffer: ByteBuffer, skipRecvResponse: Boolean = false) {
         val timeBeginMillis = System.currentTimeMillis()
         val archiveSize = byteBuffer.remaining().toLong()
         val DATA_BLOCK_SIZE = 2L * 1024 * 1024
 
         val uploadArchiveReq = JanusMessage.create(JanusMessage.UploadArchive.typeCode) as JanusMessage.UploadArchive
         uploadArchiveReq.archiveSize = byteBuffer.remaining().toLong()
-        val seqId = nextArchiveSeqId++
+        val seqId = nextSeqId++
         uploadArchiveReq.seqId = seqId
         send(uploadArchiveReq)
 
@@ -373,8 +371,10 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
             send(dataBlockReq)
         }
 
-        val response = recvResponse(throwOnFail = true, "Server failed to receive archive")
-        JanusMessage.recycle(dataBlockReq, uploadArchiveReq, response)
+        if (!skipRecvResponse) {
+            val response = recvResponse(throwOnFail = true, "Server failed to receive archive")
+            JanusMessage.recycle(dataBlockReq, uploadArchiveReq, response)
+        }
 
         pendingArchiveSequences += seqId
 

@@ -12,8 +12,7 @@ class ByeHandler(val lounge: Lounge) : MessageHandler<JanusMessage.Bye> {
         conn: JanusProtocolConnection,
         msg: JanusMessage.Bye
     ) {
-        conn.bye()
-        Logger.success("Waved goodbye to client.")
+        conn.bye(expectResponse = false)
         lounge.stop()
     }
 }

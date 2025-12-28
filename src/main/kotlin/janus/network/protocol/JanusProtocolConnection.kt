@@ -455,13 +455,12 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
     }
 
 
-    suspend fun bye() {
+    suspend fun bye(expectResponse: Boolean) {
         val byeMsg = JanusMessage.create(JanusMessage.Bye.typeCode) as JanusMessage.Bye
         send(byeMsg)
-        Logger.success("Waved goodbye to server.")
-        JanusMessage.recycle(
-            byeMsg,
-            recvMessage(requiredMsgType = JanusMessage.Bye.typeCode)
-        )
+        Logger.success("Waved goodbye.")
+        JanusMessage.recycle(byeMsg)
+        if (expectResponse)
+            JanusMessage.recycle(recvMessage(requiredMsgType = JanusMessage.Bye.typeCode))
     }
 }

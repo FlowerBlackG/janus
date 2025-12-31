@@ -6,12 +6,13 @@ import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.config.ConnectionMode
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.AsyncServerSocketWrapper
+import io.github.flowerblackg.janus.network.nio.NioServerSocket
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.net.InetSocketAddress
-import java.nio.channels.AsynchronousServerSocketChannel
 
 
 private fun serve(
@@ -33,7 +34,9 @@ private fun serve(
             locked
         }
 
-        val resCode = lounge.serve()
+        val resCode = lounge.use {
+            it.serve()
+        }
 
         if (ws != null)
             permits[ws]?.unlock()
@@ -49,14 +52,13 @@ private fun serve(
 suspend fun runServer(config: Config): Int {
     Logger.info("Running in server mode")
 
-    val serverChannel = try {
-        AsynchronousServerSocketChannel.open().bind(InetSocketAddress(config.port!!))
+    val serverSock = try {
+        val localAddr = InetSocketAddress(config.port!!)
+        NioServerSocket.open().bind(localAddr)
     } catch (e: Exception) {
         Logger.error("Failed to start server: ${e.message}")
         return 1
     }
-
-    val serverWrapper = AsyncServerSocketWrapper(serverChannel)
 
     Logger.info("Server started on port ${config.port}")
 
@@ -69,13 +71,11 @@ suspend fun runServer(config: Config): Int {
 
     var running = true
     while (running) {
-        val conn = JanusProtocolConnection(serverWrapper.accept())
+        val conn = JanusProtocolConnection(serverSock.accept())
         tasks.add(serve(conn, config, workspacePermits))
     }
 
     tasks.joinAll()
-
-    serverWrapper.close()
     Logger.info("Server closed. Bye~~")
     return 0
 }

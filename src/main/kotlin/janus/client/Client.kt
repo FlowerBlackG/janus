@@ -9,6 +9,7 @@ import io.github.flowerblackg.janus.filesystem.FileType
 import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.filesystem.globFilesRelative
 import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janus.network.nio.NioSocket
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection.Role
 import kotlinx.coroutines.Deferred
@@ -17,7 +18,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
 import kotlin.time.measureTime
 
 private const val SMALL_FILE_SIZE_THRESHOLD = 256 * 1024
@@ -175,14 +175,24 @@ suspend fun runClient(config: Config): Int {
     val timeBeginMillis = System.currentTimeMillis()
 
     val workspace = config.workspaces.values.first()
-    val channel = AsynchronousSocketChannel.open()
-    channel.connect(InetSocketAddress(workspace.host!!, workspace.port!!)).get()
+    val remoteAddr = InetSocketAddress(workspace.host!!, workspace.port!!)
+    Logger.info("Connecting to $remoteAddr")
+    val sock = NioSocket.open()
+    runCatching { sock.connect(remoteAddr) }.onFailure {
+        Logger.error("Failed to connect to server: ${it.message}")
+        return 1
+    }
 
     val allFilesSizePromise: Deferred<Long>
 
-    JanusProtocolConnection(channel).use { conn ->
-        conn.hello(Role.CLIENT)
-        conn.auth(workspace = workspace)
+    JanusProtocolConnection(sock).use { conn ->
+        runCatching {
+            conn.hello(Role.CLIENT)
+            conn.auth(workspace = workspace)
+        }.onFailure {
+            Logger.error("Failed on protocol handshake: ${it.message}")
+            return 1
+        }
 
         val svrToLocalTimeDiffMillis = getSvrToLocalTimeDiffMillis(conn)
         val (localFileTree, serverFileTree) = getLocalAndRemoteFileTrees(conn, workspace)

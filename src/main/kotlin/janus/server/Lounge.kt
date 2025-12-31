@@ -133,7 +133,7 @@ class Lounge (
         }
         served = true
 
-        Logger.info("Welcome ${conn.socketChannel.remoteAddress} to Lounge.")
+        Logger.info("Welcome ${conn.janusSocket.remoteAddress} to Lounge.")
         helloAndAuth() ?: return 1
 
         if (onAuthorized?.let { it(this.workspace) } == false)

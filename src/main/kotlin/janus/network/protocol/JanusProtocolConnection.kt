@@ -8,9 +8,8 @@ import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
 import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.filesystem.getPermissionMask
 import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.AsyncSocketWrapper
+import io.github.flowerblackg.janus.network.JanusSocket
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -21,9 +20,13 @@ import kotlin.random.Random
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncSocketWrapper(socketChannel) {
+class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
+    override fun close() {
+        janusSocket.close()
+    }
+
     suspend fun send(janusMsg: JanusMessage) {
-        write(janusMsg.toByteBuffer())
+        janusSocket.write(janusMsg.toByteBuffer())
     }
 
     suspend fun sendResponse(code: Int, data: ByteBuffer? = null) {
@@ -64,7 +67,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
 
     suspend fun recvHeader(): Pair<Int, Long>? {
         val header = ByteBuffer.allocate(JanusMessage.HEADER_LENGTH)
-        runCatching { read(header) }.getOrNull() ?: return null
+        runCatching { janusSocket.read(header) }.getOrNull() ?: return null
         return JanusMessage.decodeHeader(header.flip())
     }
 
@@ -75,7 +78,7 @@ class JanusProtocolConnection(socketChannel: AsynchronousSocketChannel) : AsyncS
         }
 
         val buf = ByteBuffer.allocate(bodyLength.toInt())
-        runCatching { read(buf) }.getOrNull() ?: return null
+        runCatching { janusSocket.read(buf) }.getOrNull() ?: return null
         return buf.flip()
     }
 

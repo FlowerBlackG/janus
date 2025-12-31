@@ -30,8 +30,6 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.netty/netty-all
     implementation("io.netty:netty-all:4.2.9.Final")
-    // https://mvnrepository.com/artifact/io.netty/netty-tcnative-boringssl-static
-    implementation("io.netty:netty-tcnative-boringssl-static:2.0.74.Final")
 
     testImplementation(kotlin("test"))
 }
@@ -41,9 +39,103 @@ kotlin {
 }
 
 application {
-    mainClass.set("io.github.flowerblackg.janus.MainKt")
+    mainClass = "io.github.flowerblackg.janus.MainKt"
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+
+data class Platform(
+    val key: String = "",
+    val classifiers: Classifiers = Classifiers()
+) {
+    data class Classifiers(
+        val nettyTcnativeBoringsslStatic: String = ""
+    )
+}
+
+
+val platforms = setOf(
+    Platform(
+        key = "windows-x86_64",
+        classifiers = Platform.Classifiers(
+            nettyTcnativeBoringsslStatic = "windows-x86_64"
+        )
+    ),
+
+    Platform(
+        key = "linux-x86_64",
+        classifiers = Platform.Classifiers(
+            nettyTcnativeBoringsslStatic = "linux-x86_64"
+        )
+    ),
+).associateBy { it.key }
+
+val allPlatformPackageTasks = mutableListOf<Task>()
+
+platforms.forEach { (platformKey, platform) ->
+    val platformImplementation = configurations.create("${platformKey}-implementation").apply {
+        extendsFrom(configurations.implementation.get())
+        isCanBeResolved = false
+        isCanBeConsumed = false
+    }
+    val platformApi = configurations.create("${platformKey}-api").apply {
+        extendsFrom(configurations.api.get())
+        isCanBeResolved = false
+        isCanBeConsumed = false
+    }
+    val platformCompileOnly = configurations.create("${platformKey}-compileOnly").apply {
+        extendsFrom(configurations.compileOnly.get())
+        isCanBeResolved = false
+        isCanBeConsumed = false
+    }
+    val platformRuntimeClasspath = configurations.create("${platformKey}-runtimeClasspath").apply {
+        extendsFrom(platformCompileOnly, platformApi, platformImplementation, configurations.runtimeOnly.get())
+        isCanBeResolved = true
+        isCanBeConsumed = false
+    }
+
+    dependencies {
+        // https://mvnrepository.com/artifact/io.netty/netty-tcnative-boringssl-static
+        platformImplementation("io.netty:netty-tcnative-boringssl-static:2.0.74.Final") {
+            artifact {
+                classifier = platform.classifiers.nettyTcnativeBoringsslStatic
+            }
+        }
+    }
+
+    val packageTaskName = "package-$platformKey"
+    val platformPackageTask = tasks.register(packageTaskName, com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {
+        from(sourceSets["main"].output)
+        mainClass = application.mainClass.get()
+        configurations = listOf(platformRuntimeClasspath)
+        archiveBaseName = project.name
+        archiveClassifier = platformKey
+        archiveVersion = project.version.toString()
+        destinationDirectory = file("${project.buildDir}/libs")
+        isZip64 = true
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+        exclude("META-INF/*.SF")
+        exclude("META-INF/*.DSA")
+        exclude("META-INF/*.RSA")
+        exclude("META-INF/*.EC")
+        exclude("META-INF/SIG-*")
+    }
+
+    allPlatformPackageTasks += platformPackageTask.get()
+
+    tasks.register("build-$platformKey") {
+        group = "build"
+        description = "Builds the shadow jar for $platformKey"
+        dependsOn(platformPackageTask, tasks.compileKotlin, tasks.compileJava)
+    }
+}
+
+
+val packageAll by tasks.registering(Task::class) {
+    dependsOn(allPlatformPackageTasks)
+    group = "build"
 }

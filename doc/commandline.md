@@ -52,6 +52,14 @@ Type: plain text.
 
 Highly recommended to set. But you'd better set it in config.json.
 
+### --ssl-cert [path]
+
+Path to ssl cert. Optional, but highly recommended.
+
+### --ssl-key [path]
+
+Path to ssl key. Optional, but highly recommended.
+
 ---
 
 ## Janus Server

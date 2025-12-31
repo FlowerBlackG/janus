@@ -38,6 +38,14 @@
         "value": ""
     },
 
+
+    // optional, but highly recommended.
+    "ssl": {
+        "key": "/path/to/ssl/key.pem",
+        "cert": "/path/to/ssl/cert.pem"
+    },
+
+
     // each "workspace" is a folder.
     // if only one workspace configured, it will be selected by default.
     "workspaces": [

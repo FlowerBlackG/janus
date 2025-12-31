@@ -29,6 +29,7 @@ data class AppConfig(
     val host: String? = null,
     val filter: FilterConfig? = null,
     val secret: SecretConfig? = null,
+    val ssl: SslConfig? = null,
     val workspaces: List<WorkspaceConfig> = emptyList()
 ) {
     companion object {
@@ -134,6 +135,14 @@ data class SecretConfig(
         return null
     }
 }
+
+
+@Serializable
+data class SslConfig(
+    val key: String,
+    val cert: String
+)
+
 
 // --- Enums with Custom Serializers ---
 

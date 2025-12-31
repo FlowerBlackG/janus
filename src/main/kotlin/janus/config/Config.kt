@@ -4,6 +4,8 @@ package io.github.flowerblackg.janus.config
 
 import io.github.flowerblackg.janus.crypto.AesHelper
 import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janus.network.netty.NettySslUtils
+import io.netty.handler.ssl.SslContext
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
@@ -19,6 +21,7 @@ data class Config(
     var port: Int? = null,
     /** Nonnull for server mode. */
     var host: InetAddress? = null,
+    var ssl: SslConfig = SslConfig(),
     /** Only 1 workspace in this collection is ensured for client mode. */
     val workspaces: MutableMap<Pair<ConnectionMode, String>, WorkspaceConfig> = HashMap()
 ) {
@@ -47,6 +50,12 @@ data class Config(
     data class FilterConfig(
         var ignore: MutableList<String> = mutableListOf(),
         var protect: MutableList<String> = mutableListOf(),
+    )
+
+
+    data class SslConfig(
+        var serverContext: SslContext? = null,
+        var clientContext: SslContext? = null
     )
 }
 
@@ -125,6 +134,55 @@ private fun loadRunMode(rawConfig: RawConfig, appConfig: AppConfig?, result: Loa
     result.messages.add(LoadConfigMessage("--server or --client are required", LoadConfigMessage.Level.ERROR))
     return null
 }
+
+
+/**
+ * @return If null, means some critical error occurred. You should stop parsing config.
+ */
+private fun loadSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult): Unit? {
+    val certPath = rawConfig.values["--ssl-cert"] ?: appConfig?.ssl?.cert
+    val keyPath = rawConfig.values["--ssl-key"] ?: appConfig?.ssl?.key
+
+    if (certPath == null && keyPath == null) {
+        result.messages += LoadConfigMessage(
+            "no ssl provided. data transmission will be insecure.",
+            LoadConfigMessage.Level.WARN
+        )
+        return Unit
+    }
+
+    when (appConfig!!.mode) {
+        ConnectionMode.SERVER -> {
+            if (certPath == null || keyPath == null) {
+                result.messages.add(LoadConfigMessage(
+                    "ssl cert and key are required for server mode",
+                    LoadConfigMessage.Level.ERROR
+                ))
+                return null
+            }
+        }
+        ConnectionMode.CLIENT -> {
+            if (certPath == null) {
+                result.messages.add(LoadConfigMessage(
+                    "ssl cert is required for client mode",
+                    LoadConfigMessage.Level.ERROR
+                ))
+                return null
+            }
+        }
+    }
+
+    val certFile = File(certPath)
+    val keyFile = keyPath?.let { File(it) }
+
+    result.config.ssl.clientContext = NettySslUtils.createClientContext(certFile)
+    if (keyFile != null) {
+        result.config.ssl.serverContext = NettySslUtils.createServerContext(certFile, keyFile)
+    }
+
+    return Unit
+}
+
 
 
 /**
@@ -278,6 +336,7 @@ fun loadConfig(rawConfig: RawConfig): LoadConfigResult {
     val appConfig: AppConfig? = loadAppConfigFromJson(rawConfig)
 
     loadRunMode(rawConfig, appConfig, result) ?: return result
+    loadSslConfig(rawConfig, appConfig, result) ?: return result
     loadHostAndPort(rawConfig, appConfig, result) ?: return result
     loadWorkspaces(rawConfig, appConfig, result)
 

@@ -47,3 +47,23 @@ Statistics
 |      Janus      | 201 seconds |  3 seconds  |  2.7 seconds  |
 |      rsync      | 382 seconds | 126 seconds |  119 seconds  |
 | Performance gain |   +90.04%   |   +4100%   |     +4307%     |
+
+### Workspace with 60766 files, 12GB
+
+Hardware & Software
+
+|                  |                             Client                             |                             Server                             |
+| :--------------: | :------------------------------------------------------------: | :------------------------------------------------------------: |
+|   **OS**   |                   Windows 11 23H2 22631.6199                   |                GNU/Linux 6.6.98-40.2.tl4.x86_64                |
+|  **CPU**  |                            i9-9900                            |                           EPYC 9754                           |
+| **Memory** |                              DDR4                              |                                                                |
+| **Janus** | commit 4da15bcd450e9b8b8dd1a6a5e1cc7a3c9d0589a6 protocol draft | commit 4da15bcd450e9b8b8dd1a6a5e1cc7a3c9d0589a6 protocol draft |
+| **rsync** |               version 3.1.2 protocol version 31               |               version 3.2.7 protocol version 31               |
+
+Statistics
+
+|                  | Full Sync | No change | 1 file changed |
+| :--------------: | :-------: | :-------: | :------------: |
+|      Janus      | 157 seconds  | 2.3 seconds  |   2.3 seconds    |
+|      rsync      | 259 seconds  | 66 seconds |   66 seconds    |
+| Performance gain |    +64%    |    +2769%    |       +2769%       |

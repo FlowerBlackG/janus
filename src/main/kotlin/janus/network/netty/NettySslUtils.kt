@@ -2,6 +2,8 @@
 
 package io.github.flowerblackg.janus.network.netty
 
+import io.github.flowerblackg.janus.logging.Logger
+import io.netty.handler.ssl.OpenSsl
 import io.netty.handler.ssl.SslContext
 import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.SslProvider
@@ -14,6 +16,24 @@ import kotlin.io.path.writeText
 
 
 object NettySslUtils {
+    private var _sslProvider: SslProvider? = null
+    private val sslProvider: SslProvider
+        get() {
+            if (_sslProvider != null)
+                return _sslProvider!!
+
+            _sslProvider = if (OpenSsl.isAvailable()) {
+                Logger.info("Using native OpenSSL for ultimate performance :D")
+                SslProvider.OPENSSL
+            }
+            else {
+                Logger.warn("Failed to load OpenSSL. Fallback to JDK's SSL. Performance will suffer :(")
+                SslProvider.JDK
+            }
+
+            return _sslProvider!!
+        }
+
 
     fun generateSelfSignedCert(
         crtPath: Path? = null,
@@ -50,13 +70,13 @@ object NettySslUtils {
 
     fun createServerContext(cert: File, privateKey: File): SslContext {
         return SslContextBuilder.forServer(cert, privateKey)
-            .sslProvider(SslProvider.OPENSSL)
+            .sslProvider(sslProvider)
             .build()
     }
 
     fun createClientContext(cert: File): SslContext {
         return SslContextBuilder.forClient()
-            .sslProvider(SslProvider.OPENSSL)
+            .sslProvider(sslProvider)
             .trustManager(cert)
             .endpointIdentificationAlgorithm(null)
             .build()

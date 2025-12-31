@@ -30,6 +30,10 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.netty/netty-all
     implementation("io.netty:netty-all:4.2.9.Final")
+    // https://mvnrepository.com/artifact/io.netty/netty-pkitesting
+    implementation("io.netty:netty-pkitesting:4.2.9.Final")
+
+
 
     testImplementation(kotlin("test"))
 }

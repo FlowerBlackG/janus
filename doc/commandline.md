@@ -18,14 +18,6 @@ Value is a string, like: 192.168.1.3
 
 Must have for running in client mode.
 
-### --version
-
-Show Janus version and exit.
-
-### --help / --usage
-
-Show usage and exit.
-
 ### --config [file]
 
 Config in json.
@@ -77,3 +69,19 @@ Specify a port to listen. If not set, port is selected automatically.
 Optional. If set, will be the default way to solve dangling files.
 
 "remove" or "keep" or "panic".
+
+---
+
+## Janus Subprograms
+
+### --version
+
+Show Janus version and exit.
+
+### --help / --usage
+
+Show usage and exit.
+
+### --generate-ssl-keys
+
+Generate ED25519 SSL keys. If --ssl-cert and --ssl-key set, will save to the paths.

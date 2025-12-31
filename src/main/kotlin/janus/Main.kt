@@ -7,9 +7,11 @@ import io.github.flowerblackg.janus.client.runClient
 import io.github.flowerblackg.janus.config.*
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janus.network.netty.NettySslUtils
 import io.github.flowerblackg.janus.server.runServer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlin.io.path.Path
 import kotlin.system.exitProcess
 
 private fun usage(error: String? = null) {
@@ -32,6 +34,30 @@ private fun version() {
 }
 
 
+private fun generateSslKeys(rawConfig: RawConfig): Int {
+    val certPath = rawConfig.values["--ssl-cert"]?.let { Path(it) }
+    val keyPath = rawConfig.values["--ssl-key"]?.let { Path(it) }
+
+    val x509 = runCatching { NettySslUtils.generateSelfSignedCert(certPath, keyPath) }.getOrNull()
+
+    if (x509 == null) {
+        Logger.error("Failed to generate self-signed certificate.")
+        return 1
+    }
+
+    if (certPath == null) {
+        Logger.success("Here comes your self-signed certificate:\n${x509.certificatePEM}")
+    }
+
+    if (keyPath == null) {
+        Logger.success("Here comes your self-signed key:\n${x509.privateKeyPEM}")
+    }
+
+
+    return 0
+}
+
+
 private fun printConfig(config: Config) {
     Logger.info("Mode: ${config.runMode}")
     Logger.info("Total of ${config.workspaces.size} workspace(s) loaded.")
@@ -47,12 +73,16 @@ fun main(args: Array<String>) {
     version()
 
 
-    if (rawConfig.flags.contains("--version") || rawConfig.flags.contains("-v"))
+    if ("--version" in rawConfig.flags || "-v" in rawConfig.flags)
         return
 
-    if (rawConfig.flags.contains("--help") || rawConfig.flags.contains("--usage") || rawConfig.flags.contains("-h")) {
+    if ("--help" in rawConfig.flags || "--usage" in rawConfig.flags || "-h" in rawConfig.flags) {
         usage()
         return
+    }
+
+    if ("--generate-ssl-keys" in rawConfig.flags) {
+        exitProcess(generateSslKeys(rawConfig))
     }
 
     val loadConfigResult = loadConfig(rawConfig)

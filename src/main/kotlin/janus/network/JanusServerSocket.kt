@@ -5,7 +5,7 @@ package io.github.flowerblackg.janus.network
 import java.net.SocketAddress
 
 abstract class JanusServerSocket : AutoCloseable {
-    abstract val localAddress: SocketAddress
+    abstract val localAddress: SocketAddress?
 
     /**
      *

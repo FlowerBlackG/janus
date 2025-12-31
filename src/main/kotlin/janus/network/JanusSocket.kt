@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 import kotlin.time.Duration
 
 abstract class JanusSocket : AutoCloseable {
-    abstract val remoteAddress: SocketAddress
+    abstract val remoteAddress: SocketAddress?
 
     abstract fun connect(remoteAddr: SocketAddress)
 

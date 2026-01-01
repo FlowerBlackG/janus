@@ -10,4 +10,8 @@ object GlobalNettyEventLoopGroups {
     private val defaultNThreads = maxOf(4, nCpus * 2)
 
     val Default = MultiThreadIoEventLoopGroup(defaultNThreads, NioIoHandler.newFactory())
+
+    fun shutdown() {
+        Default.shutdownGracefully()
+    }
 }

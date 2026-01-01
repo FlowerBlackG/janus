@@ -40,7 +40,7 @@ object NettySslUtils {
         keyPath: Path? = null,
         subject: String = "CN=JanusSync",
         validYears: Long = 1000,
-        algorithm: CertificateBuilder.Algorithm = CertificateBuilder.Algorithm.ed25519
+        algorithm: CertificateBuilder.Algorithm = CertificateBuilder.Algorithm.ecp384
     ): X509Bundle {
         // reference: https://netty.io/4.2/api/io/netty/pkitesting/CertificateBuilder.html
 

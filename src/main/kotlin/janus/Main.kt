@@ -61,9 +61,11 @@ private fun generateSslKeys(rawConfig: RawConfig): Int {
 private fun printConfig(config: Config) {
     Logger.info("Mode: ${config.runMode}")
     Logger.info("Total of ${config.workspaces.size} workspace(s) loaded.")
-    config.workspaces.forEach { (mode, _), config ->
-        Logger.info("\t$mode - ${config.name}")
-        Logger.info("\t\t${config.path}")
+    config.workspaces.forEach { (mode, _), ws ->
+        Logger.info("  $mode - ${ws.name}")
+        Logger.info("    ${ws.path}")
+        Logger.info("    ${ws.host}:${ws.port}")
+        Logger.info("    SSL: ${if (ws.ssl.isReadyFor(ws.mode)) "ON" else "OFF"}")
     }
 }
 

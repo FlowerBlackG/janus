@@ -262,19 +262,12 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             mode = appConfigWorkspace.role,
             crypto = appConfigWorkspace.secret?.toCryptoConfig() ?: globalCryptoConfig,
             port = appConfigWorkspace.port ?: config.port,
+            host = runCatching { InetAddress.getByName(appConfigWorkspace.host) }.getOrNull() ?: config.host
         )
 
-        if (workspace.mode == ConnectionMode.CLIENT) {
-            workspace.host = try {
-                InetAddress.getByName(appConfigWorkspace.host)
-            } catch (e: Exception) {
-                result.addWarn("Host is not valid")
-                null
-            } ?: config.host
-
-            if (workspace.host == null || workspace.port == null) {
-                return@forEach
-            }
+        if (workspace.mode == ConnectionMode.CLIENT && (workspace.host == null || workspace.port == null)) {
+            result.addWarn("Failed to load workspace ${workspace.name} ${workspace.mode}. Host or port not set.")
+            return@forEach
         }
 
         if (workspace.crypto.aes == null) {

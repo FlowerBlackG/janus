@@ -104,7 +104,8 @@ def remove_readonly(func: Callable[..., Any], path: str, excinfo: Any) -> None:
 
 def package_platform(platform: Platform, version_tag: str) -> int:
     # 1. Ensure directories exist
-    shutil.rmtree(TMP_DIR, onexc=remove_readonly)
+    if TMP_DIR.exists():
+        shutil.rmtree(TMP_DIR, onexc=remove_readonly)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     JDK_DIR.mkdir(parents=True, exist_ok=True)
     TMP_DIR.mkdir(parents=True, exist_ok=True)

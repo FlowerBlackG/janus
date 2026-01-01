@@ -3,8 +3,10 @@
 package io.github.flowerblackg.janus.config
 
 import io.github.flowerblackg.janus.crypto.AesHelper
+import io.github.flowerblackg.janus.filesystem.toPath
 import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.netty.NettySslUtils
+import io.github.flowerblackg.janus.network.netty.toSslClientContext
+import io.github.flowerblackg.janus.network.netty.tryToSslServerContext
 import io.netty.handler.ssl.SslContext
 import org.json.JSONException
 import org.json.JSONObject
@@ -41,6 +43,7 @@ data class Config(
         var host: InetAddress? = null,
         /** Nonnull for client mode. */
         var port: Int? = null,
+        var ssl: SslConfig = SslConfig()
     )
 
     data class CryptoConfig(
@@ -56,7 +59,30 @@ data class Config(
     data class SslConfig(
         var serverContext: SslContext? = null,
         var clientContext: SslContext? = null
-    )
+    ) {
+        companion object {
+            fun from(cert: Path?, privKey: Path?): SslConfig {
+                if (cert == null)
+                    return SslConfig()
+
+                val res = SslConfig()
+                res.clientContext = cert.toSslClientContext()
+                res.serverContext = cert.tryToSslServerContext(privKey)
+                return res
+            }
+        }
+
+        fun isReadyFor(mode: ConnectionMode): Boolean {
+            return when (mode) {
+                ConnectionMode.SERVER -> serverContext != null
+                ConnectionMode.CLIENT -> clientContext != null
+            }
+        }
+
+        fun isNotReadyFor(mode: ConnectionMode) = !isReadyFor(mode)
+
+        fun isEmpty() = serverContext == null && clientContext == null
+    }
 }
 
 
@@ -74,7 +100,15 @@ data class LoadConfigMessage(
 data class LoadConfigResult(
     val config: Config,
     val messages: MutableList<LoadConfigMessage>
-)
+) {
+    fun addError(message: String) {
+        messages.add(LoadConfigMessage(message, LoadConfigMessage.Level.ERROR))
+    }
+
+    fun addWarn(message: String) {
+        messages.add(LoadConfigMessage(message, LoadConfigMessage.Level.WARN))
+    }
+}
 
 
 private fun loadAppConfigFromJson(rawConfig: RawConfig): AppConfig? {
@@ -114,10 +148,7 @@ private fun loadRunMode(rawConfig: RawConfig, appConfig: AppConfig?, result: Loa
     var clientMode = rawConfig.flags.contains("--client")
 
     if (serverMode && clientMode) {
-        result.messages.add(LoadConfigMessage(
-            "only one of --server and --client can be specified ",
-            LoadConfigMessage.Level.WARN)
-        )
+        result.addWarn("only one of --server and --client can be specified.")
         return null
     }
 
@@ -131,7 +162,7 @@ private fun loadRunMode(rawConfig: RawConfig, appConfig: AppConfig?, result: Loa
         return Unit
     }
 
-    result.messages.add(LoadConfigMessage("--server or --client are required", LoadConfigMessage.Level.ERROR))
+    result.addError("--server or --client are required")
     return null
 }
 
@@ -139,47 +170,34 @@ private fun loadRunMode(rawConfig: RawConfig, appConfig: AppConfig?, result: Loa
 /**
  * @return If null, means some critical error occurred. You should stop parsing config.
  */
-private fun loadSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult): Unit? {
+private fun loadGlobalSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult): Unit? {
     val certPath = rawConfig.values["--ssl-cert"] ?: appConfig?.ssl?.cert
     val keyPath = rawConfig.values["--ssl-key"] ?: appConfig?.ssl?.key
 
     if (certPath == null && keyPath == null) {
-        result.messages += LoadConfigMessage(
-            "no ssl provided. data transmission will be insecure.",
-            LoadConfigMessage.Level.WARN
-        )
+        result.addWarn("no ssl provided. data transmission will be insecure.")
         return Unit
     }
 
     when (appConfig!!.mode) {
         ConnectionMode.SERVER -> {
             if (certPath == null || keyPath == null) {
-                result.messages.add(LoadConfigMessage(
-                    "ssl cert and key are required for server mode",
-                    LoadConfigMessage.Level.ERROR
-                ))
+                result.addError("ssl cert and key are required for server mode")
                 return null
             }
         }
         ConnectionMode.CLIENT -> {
             if (certPath == null) {
-                result.messages.add(LoadConfigMessage(
-                    "ssl cert is required for client mode",
-                    LoadConfigMessage.Level.ERROR
-                ))
+                result.addError("ssl cert is required for client mode")
                 return null
             }
         }
     }
 
-    val certFile = File(certPath)
-    val keyFile = keyPath?.let { File(it) }
+    result.config.ssl = Config.SslConfig.from(certPath.toPath(), keyPath?.toPath())
 
-    result.config.ssl.clientContext = NettySslUtils.createClientContext(certFile)
-    if (keyFile != null) {
-        result.config.ssl.serverContext = NettySslUtils.createServerContext(certFile, keyFile)
-    }
-
+    if (result.config.ssl.isNotReadyFor(result.config.runMode))
+        result.addWarn("Failed to load ssl config.")
     return Unit
 }
 
@@ -194,7 +212,7 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
     config.port = rawConfig.values["--port"]?.toInt() ?: appConfig?.port
 
     if (config.port == null && config.runMode == ConnectionMode.SERVER) {
-        result.messages.add(LoadConfigMessage("Port is not specified", LoadConfigMessage.Level.ERROR))
+        result.addError("Port is not specified")
         return null
     }
 
@@ -202,7 +220,7 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
     val hostStr = rawConfig.values["--host"] ?: rawConfig.values["--ip"] ?: appConfig?.host
 
     if (hostStr == null && config.runMode == ConnectionMode.SERVER) {
-        result.messages.add(LoadConfigMessage("Host is not specified", LoadConfigMessage.Level.ERROR))
+        result.addError("Host is not specified")
         return null
     }
 
@@ -210,7 +228,7 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
         config.host = try {
             InetAddress.getByName(hostStr)
         } catch (e: Exception) {
-            result.messages.add(LoadConfigMessage("Host is not valid", LoadConfigMessage.Level.ERROR))
+            result.addError("Host is not valid")
             null
         }
     }
@@ -250,10 +268,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             workspace.host = try {
                 InetAddress.getByName(appConfigWorkspace.host)
             } catch (e: Exception) {
-                result.messages.add(LoadConfigMessage(
-                    "Host is not valid",
-                    LoadConfigMessage.Level.WARN
-                ))
+                result.addWarn("Host is not valid")
                 null
             } ?: config.host
 
@@ -263,9 +278,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
         }
 
         if (workspace.crypto.aes == null) {
-            result.messages.add(LoadConfigMessage(
-                "Workspace '${workspace.name}' has no secret", LoadConfigMessage.Level.WARN
-            ))
+            result.addWarn("Workspace '${workspace.name}' has no secret")
         }
 
         // load ignore config
@@ -276,6 +289,16 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             workspace.filter.ignore.addAll(globalFilterConfig.ignore)
             workspace.filter.protect.addAll(globalFilterConfig.protect)
         }
+
+
+        // load ssl config
+        val cert = appConfigWorkspace.ssl?.cert ?: appConfig.ssl?.cert
+        val privKey = appConfigWorkspace.ssl?.key ?: appConfig.ssl?.key
+        var sslConfig = Config.SslConfig.from(cert?.toPath(), privKey?.toPath())
+        if (sslConfig.isEmpty())
+            sslConfig = config.ssl
+
+        workspace.ssl = sslConfig
 
         config.workspaces[Pair(workspace.mode, workspace.name)] = workspace
     }
@@ -299,7 +322,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
 
         rawCfgPath ?: return@run
         rawCfgSecret ?: run {
-            result.messages.add(LoadConfigMessage("Secret is not set for workspace '${rawCfgWorkspace}'.", LoadConfigMessage.Level.WARN))
+            result.addWarn("Secret is not set for workspace '${rawCfgWorkspace}'.")
         }
 
 
@@ -313,12 +336,11 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
             filter = globalFilterConfig,
             port = config.port,
             host = config.host,
+            ssl = config.ssl,
         )
 
         if (ws.mode == ConnectionMode.SERVER && (ws.port == null || ws.host == null)) {
-            result.messages.add(LoadConfigMessage(
-                "Host and port must be set for server mode.", LoadConfigMessage.Level.ERROR
-            ))
+            result.addError("Host and port must be set for server mode.")
             return@run
         }
         config.workspaces.clear()
@@ -336,15 +358,13 @@ fun loadConfig(rawConfig: RawConfig): LoadConfigResult {
     val appConfig: AppConfig? = loadAppConfigFromJson(rawConfig)
 
     loadRunMode(rawConfig, appConfig, result) ?: return result
-    loadSslConfig(rawConfig, appConfig, result) ?: return result
+    loadGlobalSslConfig(rawConfig, appConfig, result) ?: return result
     loadHostAndPort(rawConfig, appConfig, result) ?: return result
     loadWorkspaces(rawConfig, appConfig, result)
 
     val nWorkspaces = result.config.workspaces.size
     if (result.config.runMode == ConnectionMode.CLIENT && nWorkspaces != 1) {
-        result.messages.add(LoadConfigMessage(
-            "Client mode requires exactly one workspace.", LoadConfigMessage.Level.ERROR
-        ))
+        result.addError("Client mode requires exactly one workspace.")
     }
 
     return result

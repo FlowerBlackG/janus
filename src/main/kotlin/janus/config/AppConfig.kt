@@ -81,6 +81,7 @@ data class WorkspaceConfig(
     val filter: FilterConfig? = null,
     val host: String? = null,
     val port: Int? = null,
+    val ssl: SslConfig? = null
 )
 
 @Serializable

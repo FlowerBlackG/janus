@@ -40,6 +40,7 @@
 
 
     // optional, but highly recommended.
+    // for clients, maybe it is better to set per-workspace ssl.
     "ssl": {
         "key": "/path/to/ssl/key.pem",
         "cert": "/path/to/ssl/cert.pem"
@@ -61,6 +62,13 @@
             "secret": {
                 "type": "",   // "string" or "base64" or "file-string" or "file-base64"
                 "value": ""
+            },
+
+            // for server, this is ignored.
+            // for client, this overrides global ssl settings.
+            "ssl": {
+                "key": "/path/to/ssl/key.pem",
+                "cert": "/path/to/ssl/cert.pem"
             },
 
             "filter": {

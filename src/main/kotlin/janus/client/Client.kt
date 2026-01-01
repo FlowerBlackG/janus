@@ -9,7 +9,7 @@ import io.github.flowerblackg.janus.filesystem.FileType
 import io.github.flowerblackg.janus.filesystem.SyncPlan
 import io.github.flowerblackg.janus.filesystem.globFilesRelative
 import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.nio.NioSocket
+import io.github.flowerblackg.janus.network.netty.NettySocket
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection.Role
 import kotlinx.coroutines.Deferred
@@ -177,7 +177,7 @@ suspend fun runClient(config: Config): Int {
     val workspace = config.workspaces.values.first()
     val remoteAddr = InetSocketAddress(workspace.host!!, workspace.port!!)
     Logger.info("Connecting to $remoteAddr")
-    val sock = NioSocket.open()
+    val sock = NettySocket(sslContext = workspace.ssl.clientContext)
     runCatching { sock.connect(remoteAddr) }.onFailure {
         Logger.error("Failed to connect to server: ${it.message}")
         return 1

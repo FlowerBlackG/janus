@@ -6,7 +6,7 @@ import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.config.ConnectionMode
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.nio.NioServerSocket
+import io.github.flowerblackg.janus.network.netty.NettyServerSocket
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.joinAll
@@ -54,7 +54,7 @@ suspend fun runServer(config: Config): Int {
 
     val serverSock = try {
         val localAddr = InetSocketAddress(config.port!!)
-        NioServerSocket.open().bind(localAddr)
+        NettyServerSocket(config.ssl.serverContext).bind(localAddr)
     } catch (e: Exception) {
         Logger.error("Failed to start server: ${e.message}")
         return 1

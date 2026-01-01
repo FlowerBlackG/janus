@@ -2,6 +2,8 @@
 
 package io.github.flowerblackg.janus.network.netty
 
+import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.JanusSocket
 import io.github.flowerblackg.janus.network.protocol.protocolDebugger
 import io.netty.bootstrap.Bootstrap
@@ -10,8 +12,6 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandler
 import io.netty.channel.ChannelInitializer
-import io.netty.channel.MultiThreadIoEventLoopGroup
-import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.ssl.SslContext
@@ -36,6 +36,7 @@ class NettySocket(
     @OptIn(ExperimentalAtomicApi::class)
     protected val isClosed = AtomicBoolean(false)
 
+    // These states are NOT thread-safe and must ONLY be accessed from channel.eventLoop()
     protected var readContinuation: Continuation<Int>? = null
     protected var readBuffer: ByteBuffer? = null
     protected var stashBuffer: ByteBuf? = null
@@ -50,7 +51,7 @@ class NettySocket(
     override fun connect(remoteAddr: SocketAddress) {
         check(channel == null) { "Already connected to somewhere." }
 
-        val group = MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
+        val group = GlobalCoroutineScopes.nettyEventLoopGroup
         val b = Bootstrap()
         b.group(group)
             .channel(NioSocketChannel::class.java)
@@ -66,43 +67,82 @@ class NettySocket(
             throw future.cause()
     }
 
+    /**
+     * Executes the block strictly on the Channel's EventLoop.
+     * If strictly unnecessary (already on loop), runs immediately.
+     */
+    private inline fun runOnLoop(crossinline block: () -> Unit) {
+        val loop = channel?.eventLoop() ?: return
+        if (loop.inEventLoop()) {
+            block()
+        } else {
+            loop.execute { block() }
+        }
+    }
+
     @OptIn(ExperimentalAtomicApi::class)
     override suspend fun readSome(buffer: ByteBuffer, timeout: Duration): Int {
         if (isClosed.load())
             return -1
 
-        // 1. Check stash first
-        val stash = stashBuffer
-        if (stash != null && stash.isReadable) {
-            val bytesToRead = minOf(buffer.remaining(), stash.readableBytes())
-            stash.readBytes(buffer) // Copy to NIO buffer
-
-            if (!stash.isReadable) {
-                stash.release()
-                stashBuffer = null
-            }
-            return bytesToRead
-        }
-
-        // 2. If no stash, request from Netty
         return suspendCancellableCoroutine { cont ->
-            synchronized(this) {
+            val ch = channel
+            if (ch == null) {
+                cont.resumeWithException(IllegalStateException("Not connected"))
+                return@suspendCancellableCoroutine
+            }
+
+            val loop = ch.eventLoop()
+
+            // Logic to be executed on the EventLoop
+            fun doRead() {
                 if (readContinuation != null) {
                     cont.resumeWithException(IllegalStateException("Read already in progress"))
-                    return@suspendCancellableCoroutine
+                    return
                 }
+
+                // 1. Check stash first (safe to access here)
+                val stash = stashBuffer
+                if (stash != null && stash.isReadable) {
+                    val bytesToRead = minOf(buffer.remaining(), stash.readableBytes())
+                    val oldLimit = buffer.limit()
+                    buffer.limit(buffer.position() + bytesToRead)
+                    stash.readBytes(buffer) // Copy to NIO buffer
+                    buffer.limit(oldLimit)
+
+                    if (!stash.isReadable) {
+                        stash.release()
+                        stashBuffer = null
+                    }
+                    cont.resume(bytesToRead)
+                    return
+                }
+
+                // 2. If no stash, register continuation
                 readContinuation = cont
                 readBuffer = buffer
+
+                // Trigger Netty read
+                ch.read()
             }
 
-            // Trigger Netty to read data from OS
-            channel?.read()
+            // Enforce Thread Confinement
+            if (loop.inEventLoop()) {
+                doRead()
+            } else {
+                loop.execute(::doRead)
+            }
 
-            // Handle timeout cancellation if needed
+            // Cleanup on cancellation
             cont.invokeOnCancellation {
-                synchronized(this) {
+                if (loop.inEventLoop()) {
                     readContinuation = null
                     readBuffer = null
+                } else {
+                    loop.execute {
+                        readContinuation = null
+                        readBuffer = null
+                    }
                 }
             }
         }
@@ -115,11 +155,11 @@ class NettySocket(
         }
 
         val size = buffer.remaining()
-        // Copy NIO buffer to Netty ByteBuf
         val nettyBuf = Unpooled.wrappedBuffer(buffer)
 
         protocolDebugger.dump(buffer, "SEND")
 
+        // writeAndFlush is thread-safe in Netty; it handles the thread dispatch internally.
         ch.writeAndFlush(nettyBuf).addListener { future ->
             if (future.isSuccess) {
                 cont.resume(size)
@@ -141,23 +181,25 @@ class NettySocket(
     @OptIn(ExperimentalAtomicApi::class)
     override fun close() {
         if (isClosed.compareAndSet(false, true)) {
-            stashBuffer?.release()
-            stashBuffer = null
-            channel?.close()
-            synchronized(this) {
+            // Must release stash on the loop to avoid leaks or race conditions
+            runOnLoop {
+                stashBuffer?.release()
+                stashBuffer = null
                 readContinuation?.resume(-1)
                 readContinuation = null
                 readBuffer = null
             }
+            channel?.close()
         }
     }
 
+    // --- ChannelHandler Methods (Always run on EventLoop) ---
+
     override fun channelInactive(ctx: ChannelHandlerContext?) {
-        synchronized(this) {
-            readContinuation?.resume(-1) // EOF
-            readContinuation = null
-            readBuffer = null
-        }
+        // Already on EventLoop
+        readContinuation?.resume(-1) // EOF
+        readContinuation = null
+        readBuffer = null
         close()
     }
 
@@ -167,51 +209,47 @@ class NettySocket(
             return
         }
 
-        synchronized(this) {
-            val cont = readContinuation
-            val buf = readBuffer
+        // Already on EventLoop, no synchronized needed
+        val cont = readContinuation
+        val buf = readBuffer
 
-            if (cont != null && buf != null) {
-                val bytesToRead = minOf(buf.remaining(), msg.readableBytes())
+        if (cont != null && buf != null) {
+            val bytesToRead = minOf(buf.remaining(), msg.readableBytes())
 
-                // Copy data directly to the user's ByteBuffer
-                val slice = msg.readRetainedSlice(bytesToRead)
-                slice.readBytes(buf) // Writes into NIO buffer
-                slice.release()
+            val slice = msg.readRetainedSlice(bytesToRead)
+            val oldLimit = buf.limit()
+            buf.limit(buf.position() + bytesToRead)
+            slice.readBytes(buf)
+            buf.limit(oldLimit)
+            slice.release()
 
-                // If there are leftovers, stash them
-                if (msg.isReadable) {
-                    if (stashBuffer == null) {
-                        stashBuffer = Unpooled.buffer()
-                    }
-                    stashBuffer!!.writeBytes(msg)
-                }
-                msg.release()
-
-                // Clear state
-                readContinuation = null
-                readBuffer = null
-
-                // Resume coroutine
-                cont.resume(bytesToRead)
-            } else {
-                // Received data but no one is reading?
-                // Because we set AutoRead=false, this shouldn't happen often. We stash it.
+            if (msg.isReadable) {
                 if (stashBuffer == null) {
                     stashBuffer = Unpooled.buffer()
                 }
                 stashBuffer!!.writeBytes(msg)
-                msg.release()
             }
+            msg.release()
+
+            readContinuation = null
+            readBuffer = null
+
+            cont.resume(bytesToRead)
+        } else {
+            if (stashBuffer == null) {
+                stashBuffer = Unpooled.buffer()
+            }
+            stashBuffer!!.writeBytes(msg)
+            msg.release()
         }
     }
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
-        synchronized(this) {
-            readContinuation?.resumeWithException(cause)
-            readContinuation = null
-            readBuffer = null
-        }
+        // Already on EventLoop
+        Logger.error(trace = cause)
+        readContinuation?.resumeWithException(cause)
+        readContinuation = null
+        readBuffer = null
         close()
     }
 

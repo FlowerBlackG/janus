@@ -2,14 +2,12 @@
 
 package io.github.flowerblackg.janus.network.netty
 
+import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.network.JanusServerSocket
 import io.github.flowerblackg.janus.network.JanusSocket
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.ChannelOption
-import io.netty.channel.EventLoopGroup
-import io.netty.channel.MultiThreadIoEventLoopGroup
-import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.Channel as NettyChannel
@@ -21,8 +19,6 @@ class NettyServerSocket(
     protected val sslContext: SslContext? = null
 ) : JanusServerSocket() {
 
-    protected val bossGroup: EventLoopGroup = MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
-    protected val workerGroup: EventLoopGroup = MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
     protected var serverChannel: NettyChannel? = null
 
     protected val acceptedQueue = KChannel<JanusSocket>(KChannel.UNLIMITED)
@@ -32,7 +28,7 @@ class NettyServerSocket(
 
     override fun bind(localAddr: SocketAddress): JanusServerSocket {
         val b = ServerBootstrap()
-        b.group(bossGroup, workerGroup)
+        b.group(GlobalCoroutineScopes.nettyEventLoopGroup, GlobalCoroutineScopes.nettyEventLoopGroup)
             .channel(NioServerSocketChannel::class.java)
             .childHandler(object : ChannelInitializer<SocketChannel>() {
                 override fun initChannel(ch: SocketChannel) {
@@ -55,9 +51,5 @@ class NettyServerSocket(
     override fun close() {
         acceptedQueue.close()
         serverChannel?.close()
-        workerGroup.shutdownGracefully()
-        bossGroup.shutdownGracefully()
     }
-
-
 }

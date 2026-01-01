@@ -3,11 +3,9 @@
 package io.github.flowerblackg.janus.coroutine
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 
 object GlobalCoroutineScopes {
-    private val nettyCoroutineDispatcher = GlobalNettyEventLoopGroups.Default.asCoroutineDispatcher()
-
-    val IO: CoroutineScope = CoroutineScope(nettyCoroutineDispatcher)
-    val Default: CoroutineScope = CoroutineScope(nettyCoroutineDispatcher)
+    val IO: CoroutineScope = CoroutineScope(Dispatchers.IO)
+    val Default: CoroutineScope = CoroutineScope(Dispatchers.Default)
 }

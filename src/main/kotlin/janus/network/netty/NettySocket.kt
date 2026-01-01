@@ -2,7 +2,6 @@
 
 package io.github.flowerblackg.janus.network.netty
 
-import io.github.flowerblackg.janus.coroutine.GlobalNettyEventLoopGroups
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.JanusSocket
 import io.github.flowerblackg.janus.network.protocol.protocolDebugger
@@ -12,6 +11,9 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandler
 import io.netty.channel.ChannelInitializer
+import io.netty.channel.EventLoopGroup
+import io.netty.channel.MultiThreadIoEventLoopGroup
+import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.ssl.SslContext
@@ -48,25 +50,39 @@ class NettySocket(
         channel?.let { setupChannel(it) }
     }
 
+    /**
+     * For client sockets (which called connect()), this is its own event loop.
+     * For server sockets, event loop is provided by parent, so socket don't need to manage it itself.
+     */
+    protected var workGroup: EventLoopGroup? = null
+
     override fun connect(remoteAddr: SocketAddress) {
         check(channel == null) { "Already connected to somewhere." }
 
-        val group = GlobalNettyEventLoopGroups.Default
-        val b = Bootstrap()
-        b.group(group)
-            .channel(NioSocketChannel::class.java)
-            .handler(object : ChannelInitializer<SocketChannel>() {
-                override fun initChannel(ch: SocketChannel) {
-                    channel = ch
-                    setupChannel(ch)
-                }
-            })
+        workGroup = MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
 
-        val future = b.connect(remoteAddr).sync()
-        if (future.isSuccess)
-            this.channel = future.channel() as SocketChannel
-        else
-            throw future.cause()
+        runCatching {
+            val b = Bootstrap()
+            b.group(workGroup)
+                .channel(NioSocketChannel::class.java)
+                .handler(object : ChannelInitializer<SocketChannel>() {
+                    override fun initChannel(ch: SocketChannel) {
+                        channel = ch
+                        setupChannel(ch)
+                    }
+                })
+
+            val future = b.connect(remoteAddr).sync()
+            if (future.isSuccess)
+                this.channel = future.channel() as SocketChannel
+            else
+                throw future.cause()
+        }.onFailure {
+            workGroup?.shutdownGracefully()
+            workGroup = null
+            channel = null
+            throw it
+        }
     }
 
     /**
@@ -177,6 +193,8 @@ class NettySocket(
                 readBuffer = null
             }
             channel?.close()
+            workGroup?.shutdownGracefully()
+            workGroup = null
         }
     }
 

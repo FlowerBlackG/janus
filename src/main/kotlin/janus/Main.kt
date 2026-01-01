@@ -6,7 +6,6 @@ package io.github.flowerblackg.janus
 import io.github.flowerblackg.janus.client.runClient
 import io.github.flowerblackg.janus.config.*
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
-import io.github.flowerblackg.janus.coroutine.GlobalNettyEventLoopGroups
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.netty.NettySslUtils
 import io.github.flowerblackg.janus.server.runServer
@@ -141,7 +140,6 @@ fun main(args: Array<String>) {
         Logger.error("exit with error code $retCode")
 
     Logger.info("bye~~")
-    GlobalNettyEventLoopGroups.shutdown()
     if (retCode != 0)
         exitProcess(retCode)
 }

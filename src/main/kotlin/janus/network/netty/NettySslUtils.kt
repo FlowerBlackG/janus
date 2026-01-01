@@ -83,3 +83,18 @@ object NettySslUtils {
     }
 
 }
+
+
+fun Path.toSslClientContext(): SslContext {
+    return NettySslUtils.createClientContext(this.toFile())
+}
+
+
+fun Path.toSslServerContext(privateKey: Path): SslContext {
+    return NettySslUtils.createServerContext(this.toFile(), privateKey.toFile())
+}
+
+fun Path.tryToSslServerContext(privateKey: Path?): SslContext? {
+    privateKey ?: return null
+    return this.toSslServerContext(privateKey)
+}

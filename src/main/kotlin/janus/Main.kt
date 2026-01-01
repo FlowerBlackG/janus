@@ -12,6 +12,9 @@ import io.github.flowerblackg.janus.network.netty.NettySslUtils
 import io.github.flowerblackg.janus.server.runServer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.io.path.Path
 import kotlin.system.exitProcess
 
@@ -30,8 +33,16 @@ private fun usage(error: String? = null) {
 }
 
 
+private fun isoTimeToHumanReadable(isoTime: String): String {
+    val dateTime = OffsetDateTime.parse(isoTime)
+    val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm:ss", Locale.ENGLISH)
+    return dateTime.format(formatter)
+}
+
+
 private fun version() {
-    Logger.info("janus ${Version.name} (${Version.code})")
+    Logger.info("janus ${Version.name}")
+    Logger.info("> built on ${isoTimeToHumanReadable(Version.time)}")
 }
 
 

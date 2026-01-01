@@ -2,7 +2,7 @@
 
 package io.github.flowerblackg.janus.network.netty
 
-import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janus.coroutine.GlobalNettyEventLoopGroups
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.JanusSocket
 import io.github.flowerblackg.janus.network.protocol.protocolDebugger
@@ -51,7 +51,7 @@ class NettySocket(
     override fun connect(remoteAddr: SocketAddress) {
         check(channel == null) { "Already connected to somewhere." }
 
-        val group = GlobalCoroutineScopes.nettyEventLoopGroup
+        val group = GlobalNettyEventLoopGroups.Default
         val b = Bootstrap()
         b.group(group)
             .channel(NioSocketChannel::class.java)
@@ -63,7 +63,9 @@ class NettySocket(
             })
 
         val future = b.connect(remoteAddr).sync()
-        if (!future.isSuccess)
+        if (future.isSuccess)
+            this.channel = future.channel() as SocketChannel
+        else
             throw future.cause()
     }
 
@@ -81,69 +83,54 @@ class NettySocket(
     }
 
     @OptIn(ExperimentalAtomicApi::class)
-    override suspend fun readSome(buffer: ByteBuffer, timeout: Duration): Int {
-        if (isClosed.load())
-            return -1
+    override suspend fun readSome(buffer: ByteBuffer, timeout: Duration): Int = suspendCancellableCoroutine { cont ->
+        if (isClosed.load()) {
+            cont.resume(-1)
+            return@suspendCancellableCoroutine
+        }
 
-        return suspendCancellableCoroutine { cont ->
-            val ch = channel
-            if (ch == null) {
-                cont.resumeWithException(IllegalStateException("Not connected"))
-                return@suspendCancellableCoroutine
+        val ch = channel
+        if (ch == null) {
+            cont.resumeWithException(IllegalStateException("Not connected"))
+            return@suspendCancellableCoroutine
+        }
+
+        runOnLoop {
+            if (readContinuation != null) {
+                cont.resumeWithException(IllegalStateException("Read already in progress"))
+                return@runOnLoop
             }
 
-            val loop = ch.eventLoop()
+            // 1. Check stash first (safe to access here)
+            val stash = stashBuffer
+            if (stash != null && stash.isReadable) {
+                val bytesToRead = minOf(buffer.remaining(), stash.readableBytes())
+                val oldLimit = buffer.limit()
+                buffer.limit(buffer.position() + bytesToRead)
+                stash.readBytes(buffer) // Copy to NIO buffer
+                buffer.limit(oldLimit)
 
-            // Logic to be executed on the EventLoop
-            fun doRead() {
-                if (readContinuation != null) {
-                    cont.resumeWithException(IllegalStateException("Read already in progress"))
-                    return
+                if (!stash.isReadable) {
+                    stash.release()
+                    stashBuffer = null
                 }
-
-                // 1. Check stash first (safe to access here)
-                val stash = stashBuffer
-                if (stash != null && stash.isReadable) {
-                    val bytesToRead = minOf(buffer.remaining(), stash.readableBytes())
-                    val oldLimit = buffer.limit()
-                    buffer.limit(buffer.position() + bytesToRead)
-                    stash.readBytes(buffer) // Copy to NIO buffer
-                    buffer.limit(oldLimit)
-
-                    if (!stash.isReadable) {
-                        stash.release()
-                        stashBuffer = null
-                    }
-                    cont.resume(bytesToRead)
-                    return
-                }
-
-                // 2. If no stash, register continuation
-                readContinuation = cont
-                readBuffer = buffer
-
-                // Trigger Netty read
-                ch.read()
+                cont.resume(bytesToRead)
+                return@runOnLoop
             }
 
-            // Enforce Thread Confinement
-            if (loop.inEventLoop()) {
-                doRead()
-            } else {
-                loop.execute(::doRead)
-            }
+            // 2. If no stash, register continuation
+            readContinuation = cont
+            readBuffer = buffer
 
-            // Cleanup on cancellation
-            cont.invokeOnCancellation {
-                if (loop.inEventLoop()) {
-                    readContinuation = null
-                    readBuffer = null
-                } else {
-                    loop.execute {
-                        readContinuation = null
-                        readBuffer = null
-                    }
-                }
+            // Trigger Netty read
+            ch.read()
+        }
+
+        // Cleanup on cancellation
+        cont.invokeOnCancellation {
+            runOnLoop {
+                readContinuation = null
+                readBuffer = null
             }
         }
     }
@@ -180,7 +167,7 @@ class NettySocket(
 
     @OptIn(ExperimentalAtomicApi::class)
     override fun close() {
-        if (isClosed.compareAndSet(false, true)) {
+        if (isClosed.compareAndSet(expectedValue = false, newValue = true)) {
             // Must release stash on the loop to avoid leaks or race conditions
             runOnLoop {
                 stashBuffer?.release()
@@ -209,7 +196,6 @@ class NettySocket(
             return
         }
 
-        // Already on EventLoop, no synchronized needed
         val cont = readContinuation
         val buf = readBuffer
 

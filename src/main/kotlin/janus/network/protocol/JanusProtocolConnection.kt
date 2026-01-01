@@ -71,14 +71,13 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         return JanusMessage.decodeHeader(header.flip())
     }
 
-    suspend fun recvBody(bodyLength: Long): ByteBuffer? {
+    suspend fun recvBody(bodyLength: Long): ByteBuffer {
         if (bodyLength >= Int.MAX_VALUE) {
-            Logger.error("bodyLength too large: $bodyLength")
-            return null
+            throw Exception("bodyLength too large: $bodyLength")
         }
 
         val buf = ByteBuffer.allocate(bodyLength.toInt())
-        runCatching { janusSocket.read(buf) }.getOrNull() ?: return null
+        janusSocket.read(buf)
         return buf.flip()
     }
 
@@ -86,7 +85,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
     @Throws(Exception::class)
     suspend fun recvMessage(requiredMsgType: Int? = null): JanusMessage {
         val (msgType, bodyLength) = recvHeader() ?: throw Exception("Failed to recv header.")
-        val body = recvBody(bodyLength) ?: throw Exception("Failed to recv body. requiredType: ${requiredMsgType?.toHexString()}, bodyLength: $bodyLength")
+        val body = recvBody(bodyLength)
 
         if (requiredMsgType != null && requiredMsgType != msgType)
             throw Exception("Wrong msg type: $msgType. Required msg type: $requiredMsgType")

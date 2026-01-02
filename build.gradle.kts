@@ -131,7 +131,7 @@ val platforms = setOf(
     ),
 ).associateBy { it.key }
 
-val allPlatformPackageTasks = mutableListOf<Task>()
+val platformTaskProviders = mutableListOf<TaskProvider<out Task>>()
 
 platforms.forEach { (platformKey, platform) ->
     val platformImplementation = configurations.create("${platformKey}-implementation").apply {
@@ -172,7 +172,7 @@ platforms.forEach { (platformKey, platform) ->
         archiveBaseName = project.name
         archiveClassifier = platformKey
         archiveVersion = project.version.toString()
-        destinationDirectory = file("${project.buildDir}/libs")
+        destinationDirectory = layout.buildDirectory.dir("libs")
         isZip64 = true
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
@@ -183,7 +183,7 @@ platforms.forEach { (platformKey, platform) ->
         exclude("META-INF/SIG-*")
     }
 
-    allPlatformPackageTasks += platformPackageTask.get()
+    platformTaskProviders += platformPackageTask
 
     tasks.register("build-$platformKey") {
         group = "build"
@@ -194,6 +194,6 @@ platforms.forEach { (platformKey, platform) ->
 
 
 val packageAll by tasks.registering(Task::class) {
-    dependsOn(allPlatformPackageTasks)
+    dependsOn(platformTaskProviders)
     group = "build"
 }

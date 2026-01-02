@@ -122,6 +122,13 @@ val platforms = setOf(
             nettyTcnativeBoringsslStatic = "linux-x86_64"
         )
     ),
+
+    Platform(
+        key = "macos-aarch64",
+        classifiers = Platform.Classifiers(
+            nettyTcnativeBoringsslStatic = "osx-aarch_64"
+        )
+    ),
 ).associateBy { it.key }
 
 val allPlatformPackageTasks = mutableListOf<Task>()

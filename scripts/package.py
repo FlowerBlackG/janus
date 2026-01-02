@@ -69,6 +69,18 @@ platforms = {
         shell_type=ShellType.BASH,
         compress_to=ArchiveType.TGZ,
     ),
+
+    "macos-aarch64": Platform(
+        key="macos-aarch64",
+        jdk=JDK(
+            id="kona-25.0.1-macosx-aarch64",
+            download_url="https://github.com/Tencent/TencentKona-25/releases/download/TencentKona-25.0.1/TencentKona-25.0.1.b1_jdk_macosx-aarch64_notarized.tar.gz",
+            archive_type=ArchiveType.TGZ,
+        ),
+        jar_platform_classifier="macos-aarch64",
+        shell_type=ShellType.BASH,
+        compress_to=ArchiveType.TGZ,
+    ),
 }
 
 

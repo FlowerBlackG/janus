@@ -34,6 +34,45 @@ class ArchiveExtractorPool {
     protected val extractorJobs = mutableMapOf<Long, Deferred<Long>>()
 
 
+    protected suspend fun extractOneFile(reader: ChannelByteReader): Long {
+        val filePathSize = reader.readInt()
+        val filePermissionMask = reader.readInt()
+        val fileDataSize = reader.readLong()
+
+        var processedSize = 16L
+
+        // Read file path
+        val pathBytes = reader.readBytes(filePathSize)
+        val relativePath = String(pathBytes, Charsets.UTF_8)
+        processedSize += filePathSize
+
+        // Security Check (ZipSlip prevention)
+        val outFile = workspace!!.path.resolve(relativePath).absolute().normalize()
+        if (!outFile.startsWith(workspace!!.path.absolute().normalize())) {
+            Logger.warn("Security Warning: Blocked malicious path traversal: $relativePath")
+            reader.skip(fileDataSize)
+        } else {
+            // Ensure directory structure exists
+            Files.createDirectories(outFile.parent)
+
+            val tmpPath = outFile.resolveSibling("${outFile.name}.janus-sync-tmp")
+
+            // Memory-Mapped Writing
+            // MemoryMappedFile handles the mapping and truncate operations.
+            MemoryMappedFile.createAndMap(path = tmpPath, size = fileDataSize, permissionBits = filePermissionMask).use { mmf ->
+                // Efficiently copy data from Channel buffers to the mapped MemorySegment
+                reader.readToSegment(mmf.segment, fileDataSize)
+            }
+
+            FSUtils.moveFile(tmpPath, outFile, deleteSrcOnFailure = true)
+
+            Logger.success("Extracted: $relativePath ($fileDataSize bytes)")
+        }
+        processedSize += fileDataSize
+        return processedSize
+    }
+
+
     /**
      * If critical failure, and producerJob is here, it will be canceled.
      *
@@ -53,49 +92,15 @@ class ArchiveExtractorPool {
                 var processedSize = 0L
 
                 while (processedSize < archiveSize) {
-                    val filePathSize = reader.readInt()
-                    val filePermissionMask = reader.readInt()
-                    val fileDataSize = reader.readLong()
-                    processedSize += 16
-
-                    // Read file path
-                    val pathBytes = reader.readBytes(filePathSize.toInt())
-                    val relativePath = String(pathBytes, Charsets.UTF_8)
-                    processedSize += filePathSize
-
-                    // Security Check (ZipSlip prevention)
-                    val outFile = workspace!!.path.resolve(relativePath).absolute().normalize()
-                    if (!outFile.startsWith(workspace!!.path.absolute().normalize())) {
-                        Logger.warn("Security Warning: Blocked malicious path traversal: $relativePath")
-                        reader.skip(fileDataSize)
-                    } else {
-                        // Ensure directory structure exists
-                        Files.createDirectories(outFile.parent)
-
-                        val tmpPath = outFile.resolveSibling("${outFile.name}.janus-sync-tmp")
-
-                        // Memory-Mapped Writing
-                        // MemoryMappedFile handles the mapping and truncate operations.
-                        MemoryMappedFile.createAndMap(path = tmpPath, size = fileDataSize, permissionBits = filePermissionMask).use { mmf ->
-                            // Efficiently copy data from Channel buffers to the mapped MemorySegment
-                            reader.readToSegment(mmf.segment, fileDataSize)
-                        }
-
-                        FSUtils.moveFile(tmpPath, outFile, deleteSrcOnFailure = true)
-
-                        Logger.success("Extracted: $relativePath ($fileDataSize bytes)")
-                    }
-                    processedSize += fileDataSize
+                    processedSize += extractOneFile(reader)
                 }
 
                 return@async seqId
-
             }.onFailure { e ->
                 producerJob?.cancel()
                 Logger.error("Archive extraction failed: ${e.message}", trace = e)
                 throw e
             }
-
             return@async seqId
         }
 

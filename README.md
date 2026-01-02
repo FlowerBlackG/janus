@@ -65,5 +65,5 @@ Statistics
 |                  | Full Sync | No change | 1 file changed |
 | :--------------: | :-------: | :-------: | :------------: |
 |      Janus      | 157 seconds  | 2.3 seconds  |   2.3 seconds    |
-|      rsync      | 259 seconds  | 66 seconds |   66 seconds    |
+|      rsync      | 259 seconds  | 66 seconds |   66 seconds    |
 | Performance gain |    +64%    |    +2769%    |       +2769%       |

@@ -1,5 +1,6 @@
 {
-    // "server" or "client"
+    // should janus run in "server" or "client" mode.
+    // but preferred to specify using commandline --server or --client.
     "mode": "",
 
     /*
@@ -8,13 +9,15 @@
           For server, global host and port specify which ip and port server listens to.
           Must have.
 
+          It is designed for one janus server to serve multiple workspaces on same port.
+
           For client, global host and port is just a fallback for workspaces.
           It specifies where the server is.
     */
     "host": "127.0.0.1",
     "port": 3000,
     
-    // optional.
+    // optional. if set here, merge with per-workspace filter if not set in workspace or override is false.
     "filter": {
         // optional.
         // for server: files under ignore will not be listed to client.
@@ -25,6 +28,7 @@
             // ...  in .gitignore format.
         ],
         // optional. configure on server side. protect from being deleted.
+        // files under protect will still be listed to server, but server will not delete them.
         "protect": [
             "build",
             "dist"
@@ -32,30 +36,44 @@
         ]
     },
 
-    // optional. AES key for authentication.
+    // optional. AES key for workspace authentication.
+    // if set, all workspaces without per-workspace secret will use this one.
     "secret": {
         "type": "",   // "string" or "base64" or "file-string" or "file-base64"
+        // for "string", just write something like "abcdefg123".
+        // for "file-string" and "file-base64", write the path to the file.
         "value": ""
     },
 
 
-    // optional, but highly recommended.
-    // for clients, maybe it is better to set per-workspace ssl.
+    // optional, but highly recommended for security.
+    // for server, this is used for every connection.
+    // for clients, maybe it is better to set per-workspace ssl. this is the fallback.
+    //
+    // you can generate self-signed cert by calling `janus --generate-ssl-cert`
     "ssl": {
         "key": "/path/to/ssl/key.pem",
         "cert": "/path/to/ssl/cert.pem"
     },
 
 
-    // each "workspace" is a folder.
-    // if only one workspace configured, it will be selected by default.
+    // each "workspace" is a folder. of course you can make multiple workspaces point to same folder, 
+    // or sub-folders of same parent folder.
+    // for client, if only one workspace configured, it will be selected by default. if multiple, you should
+    // tell janus which one to use by --workspace commandline argument.
     "workspaces": [
         {
             // specifier. pair of name and role need to be unique.
+            //
+            // for example, you can have two workspaces with same name "project" if one is server and one is client.
+            // and it is designed for that. so your server and client workspace can share same name.
+            // but it is bad to have two servers or two clients with same name.
             "name": "project",
             // "server" or "client"
+            // when running janus in --server, only workspaces with role "server" are loaded. for --client, only "client" ones are loaded.
             "role": "",
             // for client and server, this value can be different, but points to same folder that wants to mirror.
+            // for example, maybe your server's path is /home/user/project, but client's path is D:/my_work_proj
             "path": "~/gty/project",
             // optional, but highly recommended. AES key for authentication.
             // if not set, use the global one. if global one not set, fallback to no authentication.
@@ -64,7 +82,7 @@
                 "value": ""
             },
 
-            // for server, this is ignored.
+            // for server, this is ignored. only global ssl is used.
             // for client, this overrides global ssl settings.
             "ssl": {
                 "key": "/path/to/ssl/key.pem",
@@ -86,6 +104,8 @@
                 ]
             },
 
+            // for client, specify where the server is.
+            // for server, this is ignored.
             "host": "127.0.0.1",
             "port": 3000
         }

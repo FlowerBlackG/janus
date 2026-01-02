@@ -97,7 +97,6 @@ class CommitSyncPlanHandler(val workspace: Config.WorkspaceConfig) : MessageHand
         planHolder += plan.children
 
         if (plan.action == SyncPlan.SyncAction.DELETE_REMOTE) {
-            Logger.info("[DELETE] ${plan.path.toAbsolutePath().normalize()}")
             val relativePath = workspace.path.relativize(plan.path)
             if (!Files.exists(plan.path))
                 return
@@ -105,9 +104,10 @@ class CommitSyncPlanHandler(val workspace: Config.WorkspaceConfig) : MessageHand
             val protectList = workspace.filter.protect
             val isDir = plan.fileType == FileType.DIRECTORY
             if (FSUtils.shouldIgnore(relativePath, isDirectory = isDir, ignoreList = protectList)) {
-                Logger.info("> Ignored due to protect rule.")
+                // ignored due to protect rule.
                 return
             }
+            Logger.info("[DELETE] ${plan.path.toAbsolutePath().normalize()}")
 
             plan.path.toFile().deleteRecursively()
         }

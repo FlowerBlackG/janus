@@ -84,4 +84,4 @@ Show usage and exit.
 
 ### --generate-ssl-keys
 
-Generate ED25519 SSL keys. If --ssl-cert and --ssl-key set, will save to the paths.
+Generate ECP384 SSL keys. If --ssl-cert and --ssl-key set, will save to the paths.

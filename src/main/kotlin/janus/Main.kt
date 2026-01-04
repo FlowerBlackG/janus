@@ -7,29 +7,15 @@ import io.github.flowerblackg.janus.client.runClient
 import io.github.flowerblackg.janus.config.*
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.netty.NettySslUtils
+import io.github.flowerblackg.janus.miniprograms.generateSslKeys
+import io.github.flowerblackg.janus.miniprograms.usage
 import io.github.flowerblackg.janus.server.runServer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Locale
-import kotlin.io.path.Path
+import java.util.*
 import kotlin.system.exitProcess
-
-private fun usage(error: String? = null) {
-    if (error != null) {
-        Logger.error(error)
-    }
-    Logger.info("Usage: janus [options]")
-    Logger.info("Options:")
-    Logger.info("  --server: run in server mode")
-    Logger.info("  --client: run in client mode")
-    Logger.info("  --help: show this help message")
-    Logger.info("  --version: show version information")
-    Logger.info("")
-    Logger.info("Read more at https://github.com/FlowerBlackG/janus")
-}
 
 
 private fun isoTimeToHumanReadable(isoTime: String): String {
@@ -45,28 +31,6 @@ private fun version() {
 }
 
 
-private fun generateSslKeys(rawConfig: RawConfig): Int {
-    val certPath = rawConfig.values["--ssl-cert"]?.let { Path(it) }
-    val keyPath = rawConfig.values["--ssl-key"]?.let { Path(it) }
-
-    val x509 = runCatching { NettySslUtils.generateSelfSignedCert(certPath, keyPath) }.getOrNull()
-
-    if (x509 == null) {
-        Logger.error("Failed to generate self-signed certificate.")
-        return 1
-    }
-
-    if (certPath == null) {
-        Logger.success("Here comes your self-signed certificate:\n${x509.certificatePEM}")
-    }
-
-    if (keyPath == null) {
-        Logger.success("Here comes your self-signed key:\n${x509.privateKeyPEM}")
-    }
-
-
-    return 0
-}
 
 
 private fun printConfig(config: Config) {

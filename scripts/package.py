@@ -86,7 +86,7 @@ platforms = {
 
 def generate_bash_script(java_exec_path: str, jar_path: str) -> str:
     result = "#!/bin/bash\n" 
-    result += f"{java_exec_path} --enable-native-access=ALL-UNNAMED -jar {jar_path} \"$@\"\n"
+    result += f"{Path(java_exec_path).as_posix()} --enable-native-access=ALL-UNNAMED -jar {Path(jar_path).as_posix()} \"$@\"\n"
     return result
 
 
@@ -112,6 +112,18 @@ def remove_readonly(func: Callable[..., Any], path: str, excinfo: Any) -> None:
     """Clear the readonly bit and re-attempt the file removal."""
     os.chmod(path, stat.S_IWRITE)
     func(path)
+
+
+def tar_permission_filter(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo:
+    if os.name != "nt":
+        return tarinfo
+    
+    path = Path(tarinfo.name).as_posix()
+    
+    if tarinfo.isdir() or tarinfo.name.endswith('java') or tarinfo.name.endswith('.sh') or ('/bin/' in path):
+        tarinfo.mode = 0o755
+
+    return tarinfo
 
 
 def package_platform(platform: Platform, version_tag: str) -> int:
@@ -211,7 +223,8 @@ def package_platform(platform: Platform, version_tag: str) -> int:
         content = generate_bash_script(f"./{java_bin_path}", jar_name)
 
     script_path = platform_tmp_folder / script_name
-    script_path.write_text(content)
+    with open(script_path, 'wb') as f:
+        f.write(content.encode('utf-8'))
     
     if platform.shell_type == ShellType.BASH:
         script_path.chmod(0o755)
@@ -238,7 +251,7 @@ def package_platform(platform: Platform, version_tag: str) -> int:
                     zipf.write(file_path, file_path.relative_to(final_path))
     else:
         with tarfile.open(archive_path, "w:gz") as tar:
-            tar.add(final_path, arcname=final_dir_name)
+            tar.add(final_path, arcname=final_dir_name, filter=tar_permission_filter)
 
     return 0
 

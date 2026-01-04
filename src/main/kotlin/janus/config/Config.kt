@@ -4,16 +4,14 @@ package io.github.flowerblackg.janus.config
 
 import io.github.flowerblackg.janus.crypto.AesHelper
 import io.github.flowerblackg.janus.filesystem.toPath
-import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.netty.toSslClientContext
 import io.github.flowerblackg.janus.network.netty.tryToSslServerContext
 import io.netty.handler.ssl.SslContext
-import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
-import java.io.FileNotFoundException
 import java.net.InetAddress
 import java.nio.file.Path
+import kotlin.collections.set
 import kotlin.io.path.Path
 
 
@@ -25,7 +23,7 @@ data class Config(
     var host: InetAddress? = null,
     var ssl: SslConfig = SslConfig(),
     /** Only 1 workspace in this collection is ensured for client mode. */
-    val workspaces: MutableMap<Pair<ConnectionMode, String>, WorkspaceConfig> = HashMap()
+    val workspaces: MutableMap<WorkspaceConfig.Identifier, WorkspaceConfig> = HashMap()
 ) {
     companion object {
         fun load(rawConfig: RawConfig): LoadConfigResult {
@@ -44,7 +42,19 @@ data class Config(
         /** Nonnull for client mode. */
         var port: Int? = null,
         var ssl: SslConfig = SslConfig()
-    )
+    ) {
+        fun getIdentifier(): Identifier {
+            return Pair(mode, name)
+        }
+
+        companion object {
+            fun makeIdentifier(mode: ConnectionMode, name: String): Identifier {
+                return Pair(mode, name)
+            }
+        }
+        typealias Identifier = Pair<ConnectionMode, String>
+    }
+
 
     data class CryptoConfig(
         var aes: AesHelper? = null,
@@ -112,84 +122,62 @@ data class LoadConfigResult(
 
 
 private fun loadAppConfigFromJson(rawConfig: RawConfig): AppConfig? {
-    val configJson = when (rawConfig.values.containsKey("--config")) {
-        true -> {
-            val configPath = rawConfig.values["--config"]!!
-            try {
-                val configJsonStr = File(configPath).readText()
-                JSONObject(configJsonStr)
-            } catch (e: FileNotFoundException) {
-                Logger.error("Config file $configPath not found")
-                JSONObject()
-            } catch (e: JSONException) {
-                Logger.error("Failed to parse config file $configPath: ${e.message}")
-                JSONObject()
-            }
-        }
-        false -> {
-            JSONObject()
-        }
-    }
-
-    return try {
-        AppConfig.parse(configJson)
-    } catch (e: Exception) {
-        Logger.warn("Failed to parse config file: ${e.message}")
-        null
-    }
+    val configPath = rawConfig.values["--config"] ?: return null
+    val configJson = JSONObject(File(configPath).readText())
+    return AppConfig.parse(configJson)
 }
 
 
 /**
  * @return If null, means some critical error occurred. You should stop parsing config.
  */
-private fun loadRunMode(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult): Unit? {
-    var serverMode = rawConfig.flags.contains("--server")
-    var clientMode = rawConfig.flags.contains("--client")
+private fun loadRunMode(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult) {
+    val serverMode = rawConfig.flags.contains("--server")
+    val clientMode = rawConfig.flags.contains("--client")
 
     if (serverMode && clientMode) {
-        result.addWarn("only one of --server and --client can be specified.")
-        return null
+        result.addError("only one of --server and --client can be specified.")
+        throw Exception()
     }
 
     if (serverMode || clientMode) {
         result.config.runMode = if (serverMode) ConnectionMode.SERVER else ConnectionMode.CLIENT
-        return Unit
+        return
     }
 
     if (appConfig != null) {
         result.config.runMode = appConfig.mode
-        return Unit
+        return
     }
 
     result.addError("--server or --client are required")
-    return null
+    throw Exception()
 }
 
 
 /**
  * @return If null, means some critical error occurred. You should stop parsing config.
  */
-private fun loadGlobalSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult): Unit? {
+private fun loadGlobalSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult) {
     val certPath = rawConfig.values["--ssl-cert"] ?: appConfig?.ssl?.cert
     val keyPath = rawConfig.values["--ssl-key"] ?: appConfig?.ssl?.key
 
     if (certPath == null && keyPath == null) {
         result.addWarn("no ssl provided. data transmission will be insecure.")
-        return Unit
+        return
     }
 
     when (appConfig!!.mode) {
         ConnectionMode.SERVER -> {
             if (certPath == null || keyPath == null) {
                 result.addError("ssl cert and key are required for server mode")
-                return null
+                throw Exception()
             }
         }
         ConnectionMode.CLIENT -> {
             if (certPath == null) {
                 result.addError("ssl cert is required for client mode")
-                return null
+                throw Exception()
             }
         }
     }
@@ -198,7 +186,6 @@ private fun loadGlobalSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, res
 
     if (result.config.ssl.isNotReadyFor(result.config.runMode))
         result.addWarn("Failed to load ssl config.")
-    return Unit
 }
 
 
@@ -207,13 +194,13 @@ private fun loadGlobalSslConfig(rawConfig: RawConfig, appConfig: AppConfig?, res
  * @param result Must have [LoadConfigResult.config] field `runMode` set.
  * @return If null, means some critical error occurred. You should stop parsing config.
  */
-private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult): Unit? {
+private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result: LoadConfigResult) {
     val config = result.config
     config.port = rawConfig.values["--port"]?.toInt() ?: appConfig?.port
 
     if (config.port == null && config.runMode == ConnectionMode.SERVER) {
         result.addError("Port is not specified")
-        return null
+        throw Exception()
     }
 
 
@@ -221,7 +208,7 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
 
     if (hostStr == null && config.runMode == ConnectionMode.SERVER) {
         result.addError("Host is not specified")
-        return null
+        throw Exception()
     }
 
     if (hostStr != null) {
@@ -229,11 +216,54 @@ private fun loadHostAndPort(rawConfig: RawConfig, appConfig: AppConfig?, result:
             InetAddress.getByName(hostStr)
         } catch (e: Exception) {
             result.addError("Host is not valid")
-            null
+            throw Exception()
         }
     }
+}
 
-    return Unit
+
+private fun loadCommandlineWorkspace(
+    globalFilterConfig: Config.FilterConfig,
+    rawConfig: RawConfig,
+    result: LoadConfigResult,
+): Config.WorkspaceConfig? {
+    val config = result.config
+
+    val rawCfgWorkspace = rawConfig.values["--workspace"] ?: return null
+    val rawCfgPath = rawConfig.values["--path"]?.let { Path(it) }
+    val rawCfgSecret = rawConfig.values["--secret"]
+    val rawCfgMode = if (rawConfig.flags.contains("--server")) ConnectionMode.SERVER else ConnectionMode.CLIENT
+
+    val cfgWsKey = Config.WorkspaceConfig.makeIdentifier(rawCfgMode, rawCfgWorkspace)
+
+    if (cfgWsKey in result.config.workspaces)
+        return config.workspaces[cfgWsKey]
+
+    rawCfgPath ?: return null
+    rawCfgSecret ?: run {
+        result.addWarn("Secret is not set for workspace '${rawCfgWorkspace}'.")
+    }
+
+
+    val aesHelper = rawCfgSecret?.toByteArray()?.let { AesHelper(keyBytes = it) }
+
+    val ws = Config.WorkspaceConfig(
+        name = rawCfgWorkspace,
+        path = rawCfgPath,
+        mode = config.runMode,
+        crypto = Config.CryptoConfig(aes = aesHelper),
+        filter = globalFilterConfig,
+        port = config.port,
+        host = config.host,
+        ssl = config.ssl,
+    )
+
+    if (ws.mode == ConnectionMode.SERVER && (ws.port == null || ws.host == null)) {
+        result.addError("Host and port must be set for server mode.")
+        return null
+    }
+
+    return ws
 }
 
 
@@ -298,46 +328,11 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
 
 
     // try load workspace from commandline
-    run {
-        val rawCfgWorkspace = rawConfig.values["--workspace"] ?: return@run
-        val rawCfgPath = rawConfig.values["--path"]?.let { Path(it) }
-        val rawCfgSecret = rawConfig.values["--secret"]
-        val rawCfgMode = if (rawConfig.flags.contains("--server")) ConnectionMode.SERVER else ConnectionMode.CLIENT
 
-        val cfgWsKey = Pair(rawCfgMode, rawCfgWorkspace)
-
-        if (config.workspaces.contains(cfgWsKey)) {
-            val ws = config.workspaces[cfgWsKey]!!
-            config.workspaces.clear()
-            config.workspaces[cfgWsKey] = ws
-            return@run
-        }
-
-        rawCfgPath ?: return@run
-        rawCfgSecret ?: run {
-            result.addWarn("Secret is not set for workspace '${rawCfgWorkspace}'.")
-        }
-
-
-        val aesHelper = rawCfgSecret?.toByteArray()?.let { AesHelper(keyBytes = it) }
-
-        val ws = Config.WorkspaceConfig(
-            name = rawCfgWorkspace,
-            path = rawCfgPath,
-            mode = config.runMode,
-            crypto = Config.CryptoConfig(aes = aesHelper),
-            filter = globalFilterConfig,
-            port = config.port,
-            host = config.host,
-            ssl = config.ssl,
-        )
-
-        if (ws.mode == ConnectionMode.SERVER && (ws.port == null || ws.host == null)) {
-            result.addError("Host and port must be set for server mode.")
-            return@run
-        }
+    val cliWs = loadCommandlineWorkspace(globalFilterConfig, rawConfig, result)
+    if (cliWs != null) {
         config.workspaces.clear()
-        config.workspaces[cfgWsKey] = ws
+        config.workspaces[Config.WorkspaceConfig.makeIdentifier(cliWs.mode, cliWs.name)] = cliWs
     }
 }
 
@@ -348,12 +343,14 @@ fun loadConfig(rawConfig: RawConfig): LoadConfigResult {
         messages = ArrayList()
     )
 
-    val appConfig: AppConfig? = loadAppConfigFromJson(rawConfig)
+    val appConfig: AppConfig? = runCatching { loadAppConfigFromJson(rawConfig) }.onFailure {
+        result.addWarn("Failed to parse app config (json).")
+    }.getOrNull()
 
-    loadRunMode(rawConfig, appConfig, result) ?: return result
-    loadGlobalSslConfig(rawConfig, appConfig, result) ?: return result
-    loadHostAndPort(rawConfig, appConfig, result) ?: return result
-    loadWorkspaces(rawConfig, appConfig, result)
+    runCatching { loadRunMode(rawConfig, appConfig, result) }.getOrNull() ?: return result
+    runCatching { loadGlobalSslConfig(rawConfig, appConfig, result) }.getOrNull() ?: return result
+    runCatching { loadHostAndPort(rawConfig, appConfig, result) }.getOrNull() ?: return result
+    runCatching { loadWorkspaces(rawConfig, appConfig, result) }.getOrNull() ?: return result
 
     val nWorkspaces = result.config.workspaces.size
     if (result.config.runMode == ConnectionMode.CLIENT && nWorkspaces != 1) {

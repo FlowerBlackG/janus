@@ -56,7 +56,6 @@ data class AppConfig(
             try {
                 return jsonSerializer!!.decodeFromString<AppConfig>(jsonString)
             } catch (e: Exception) {
-                Logger.error("Failed to parse AppConfig: ${e.message}")
                 throw IllegalArgumentException("Failed to parse AppConfig: ${e.message}")
             }
         }

@@ -85,8 +85,12 @@ platforms = {
 
 
 def generate_bash_script(java_exec_path: str, jar_path: str) -> str:
+    """
+        all path should be relative. never pass absolute path here.
+    """
     result = "#!/bin/bash\n" 
-    result += f"{Path(java_exec_path).as_posix()} --enable-native-access=ALL-UNNAMED -jar {Path(jar_path).as_posix()} \"$@\"\n"
+    result += "SCRIPT_DIR=$(cd -- \"$(dirname -- \"${BASH_SOURCE[0]}\")\" &> /dev/null && pwd)\n"
+    result += f"$SCRIPT_DIR/{Path(java_exec_path).as_posix()} --enable-native-access=ALL-UNNAMED -jar $SCRIPT_DIR/{Path(jar_path).as_posix()} \"$@\"\n"
     return result
 
 

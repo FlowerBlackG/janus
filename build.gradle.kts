@@ -13,6 +13,9 @@ val versionMinor = 0
 val versionPatch = 1
 val versionTail = "-alpha-evaluation"  // like: -dev
 
+/** Only used to tell Gradle re-generate Version.kt. */
+val nonce = "32ca4021-c181-46f4-86be-fb2458c82cc1"
+
 group = "io.github.flowerblackg"
 version = "$versionMajor.$versionMinor.$versionPatch$versionTail"
 
@@ -55,6 +58,7 @@ val generateVersionFile by tasks.registering {
     inputs.property("versionMinor", versionMinor)
     inputs.property("versionPatch", versionPatch)
     inputs.property("versionTail", versionTail)
+    inputs.property("nonce", nonce)
 
     doLast {
         val file = outputDir.get().asFile.resolve("io/github/flowerblackg/janus/Version.kt")

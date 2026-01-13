@@ -24,7 +24,7 @@ private const val SMALL_FILE_SIZE_THRESHOLD = 256 * 1024
 
 private fun sumFilesSize(plan: SyncPlan): Long {
     if (plan.fileType == FileType.DIRECTORY) {
-        return plan.children.map { sumFilesSize(it) }.sum()
+        return plan.children.sumOf { sumFilesSize(it) }
     }
     else if (plan.fileType == FileType.FILE) {
         return plan.fileSize

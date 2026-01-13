@@ -3,7 +3,6 @@
 package io.github.flowerblackg.janus.server
 
 import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.config.ConnectionMode
 import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
@@ -96,11 +95,7 @@ class Lounge (
             return null
         }
 
-        val workspaces = config.workspaces
-            .filterKeys { it.first == ConnectionMode.SERVER }
-            .values
-            .associateBy { it.name }
-        this.workspace = runCatching { conn.auth(workspaces = workspaces) }.getOrNull() ?: run {
+        this.workspace = runCatching { conn.auth(workspaces = config.workspaces) }.getOrNull() ?: run {
             Logger.error("Failed to serve client. Failed on Auth.")
             return null
         }

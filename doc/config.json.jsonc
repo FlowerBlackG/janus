@@ -69,6 +69,11 @@
             // and it is designed for that. so your server and client workspace can share same name.
             // but it is bad to have two servers or two clients with same name.
             "name": "project",
+
+            // only for client, and optional.
+            // this specifies the workspace name on remote. if not set, fallback to "name".
+            "remote_name": "project",
+
             // "server" or "client"
             // when running janus in --server, only workspaces with role "server" are loaded. for --client, only "client" ones are loaded.
             "role": "",

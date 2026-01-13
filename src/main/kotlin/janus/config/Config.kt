@@ -22,8 +22,8 @@ data class Config(
     /** Nonnull for server mode. */
     var host: InetAddress? = null,
     var ssl: SslConfig = SslConfig(),
-    /** Only 1 workspace in this collection is ensured for client mode. */
-    val workspaces: MutableMap<WorkspaceConfig.Identifier, WorkspaceConfig> = HashMap()
+    /** Workspace name to WorkspaceConfig. Only 1 workspace in this collection is ensured for client mode. */
+    val workspaces: MutableMap<String, WorkspaceConfig> = HashMap()
 ) {
     companion object {
         fun load(rawConfig: RawConfig): LoadConfigResult {
@@ -33,6 +33,7 @@ data class Config(
 
     data class WorkspaceConfig(
         var name: String = "",
+        var remoteName: String = "",
         var crypto: CryptoConfig = CryptoConfig(),
         var mode: ConnectionMode = ConnectionMode.SERVER,
         var path: Path = Path.of(""),
@@ -42,18 +43,7 @@ data class Config(
         /** Nonnull for client mode. */
         var port: Int? = null,
         var ssl: SslConfig = SslConfig()
-    ) {
-        fun getIdentifier(): Identifier {
-            return Pair(mode, name)
-        }
-
-        companion object {
-            fun makeIdentifier(mode: ConnectionMode, name: String): Identifier {
-                return Pair(mode, name)
-            }
-        }
-        typealias Identifier = Pair<ConnectionMode, String>
-    }
+    )
 
 
     data class CryptoConfig(
@@ -234,10 +224,8 @@ private fun loadCommandlineWorkspace(
     val rawCfgSecret = rawConfig.values["--secret"]
     val rawCfgMode = if (rawConfig.flags.contains("--server")) ConnectionMode.SERVER else ConnectionMode.CLIENT
 
-    val cfgWsKey = Config.WorkspaceConfig.makeIdentifier(rawCfgMode, rawCfgWorkspace)
-
-    if (cfgWsKey in result.config.workspaces)
-        return config.workspaces[cfgWsKey]
+    if (rawCfgWorkspace in result.config.workspaces)
+        return config.workspaces[rawCfgWorkspace]
 
     rawCfgPath ?: return null
     rawCfgSecret ?: run {
@@ -249,6 +237,7 @@ private fun loadCommandlineWorkspace(
 
     val ws = Config.WorkspaceConfig(
         name = rawCfgWorkspace,
+        remoteName = rawCfgWorkspace,
         path = rawCfgPath,
         mode = config.runMode,
         crypto = Config.CryptoConfig(aes = aesHelper),
@@ -282,12 +271,10 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
 
     val globalCryptoConfig = appConfig?.secret?.toCryptoConfig() ?: Config.CryptoConfig(aes = null)
 
-    appConfig?.workspaces?.forEach { appConfigWorkspace ->
-        if (appConfigWorkspace.role != config.runMode)
-            return@forEach
-
+    appConfig?.workspaces?.filter { it.role == config.runMode } ?.forEach { appConfigWorkspace ->
         val workspace = Config.WorkspaceConfig(
             name = appConfigWorkspace.name,
+            remoteName = appConfigWorkspace.remoteName,
             path = Path(appConfigWorkspace.path),
             mode = appConfigWorkspace.role,
             crypto = appConfigWorkspace.secret?.toCryptoConfig() ?: globalCryptoConfig,
@@ -323,7 +310,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
 
         workspace.ssl = sslConfig
 
-        config.workspaces[Pair(workspace.mode, workspace.name)] = workspace
+        config.workspaces[workspace.name] = workspace
     }
 
 
@@ -332,7 +319,7 @@ private fun loadWorkspaces(rawConfig: RawConfig, appConfig: AppConfig?, result: 
     val cliWs = loadCommandlineWorkspace(globalFilterConfig, rawConfig, result)
     if (cliWs != null) {
         config.workspaces.clear()
-        config.workspaces[Config.WorkspaceConfig.makeIdentifier(cliWs.mode, cliWs.name)] = cliWs
+        config.workspaces[cliWs.name] = cliWs
     }
 }
 

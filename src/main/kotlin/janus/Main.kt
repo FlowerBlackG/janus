@@ -36,11 +36,23 @@ private fun version() {
 private fun printConfig(config: Config) {
     Logger.info("Mode: ${config.runMode}")
     Logger.info("Total of ${config.workspaces.size} workspace(s) loaded.")
-    config.workspaces.forEach { (mode, _), ws ->
-        Logger.info("  $mode - ${ws.name}")
-        Logger.info("    ${ws.path}")
-        Logger.info("    ${ws.host}:${ws.port}")
-        Logger.info("    SSL: ${if (ws.ssl.isReadyFor(ws.mode)) "ON" else "OFF"}")
+    config.workspaces.forEach { (name, ws) ->
+        if (config.runMode == ConnectionMode.SERVER)
+            Logger.info("> Server workspace: $name")
+        else
+            Logger.info("> Client workspace: local: $name --> remote: ${ws.remoteName}")
+        Logger.info("  Path  : ${ws.path}")
+        Logger.info("  Server: ${ws.host}:${ws.port}")
+
+        if (ws.ssl.isReadyFor(ws.mode))
+            Logger.info("  SSL   : ON")
+        else
+            Logger.warn("  SSL   : OFF")
+
+        if (ws.crypto.aes != null)
+            Logger.info("  Secret: ON")
+        else
+            Logger.warn("  Secret: OFF (allowed, but highly vulnerable)")
     }
 }
 

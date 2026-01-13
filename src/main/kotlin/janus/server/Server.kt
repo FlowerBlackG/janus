@@ -62,10 +62,7 @@ suspend fun runServer(config: Config): Int {
 
     Logger.info("Server started on port ${config.port}")
 
-    val workspacePermits = config.workspaces
-        .filterKeys { it.first == ConnectionMode.SERVER }
-        .values.
-        associateWith { Mutex() }
+    val workspacePermits = config.workspaces.values.associateWith { Mutex() }
 
     val tasks = mutableListOf<Job>()
 

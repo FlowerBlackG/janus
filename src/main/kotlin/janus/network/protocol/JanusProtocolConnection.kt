@@ -185,7 +185,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
     protected suspend fun clientModeAuth(workspaceConfig: Config.WorkspaceConfig) {
         val aes = workspaceConfig.crypto.aes
-        val wsName = workspaceConfig.name
+        val wsName = workspaceConfig.remoteName
 
         // Auth : step 1
 

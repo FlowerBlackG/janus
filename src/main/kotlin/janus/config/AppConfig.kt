@@ -6,6 +6,7 @@ import io.github.flowerblackg.janus.crypto.AesHelper
 import io.github.flowerblackg.janus.logging.Logger
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -74,6 +75,8 @@ data class AppConfig(
     @Serializable
     data class WorkspaceConfig(
         val name: String,
+        @SerialName("remote_name")
+        private val _remoteName: String? = null,
         val role: ConnectionMode,
         val path: String,
         val secret: SecretConfig? = null,
@@ -81,7 +84,12 @@ data class AppConfig(
         val host: String? = null,
         val port: Int? = null,
         val ssl: SslConfig? = null
-    )
+    ) {
+
+        val remoteName: String
+            get() = _remoteName ?: name
+
+    }
 
     @Serializable
     data class SecretConfig(

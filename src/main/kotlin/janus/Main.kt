@@ -100,10 +100,19 @@ fun main(args: Array<String>) {
         }
     }
 
+    val activeJobCount = GlobalCoroutineScopes.activeJobCount()
+    if (activeJobCount > 0) {
+        Logger.error("$activeJobCount job(s) are still running. This is not expected!")
+    }
+
+    runBlocking {
+        runCatching { GlobalCoroutineScopes.joinChildren() }
+    }
+
+    Logger.info("bye~~")
+
     if (retCode != 0)
         Logger.error("exit with error code $retCode")
 
-    Logger.info("bye~~")
-    if (retCode != 0)
-        exitProcess(retCode)
+    exitProcess(retCode)
 }

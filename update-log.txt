@@ -1,0 +1,12 @@
+
+--------------------------------
+
+version  tag  : 1.0.0
+complete time : 2026-01-14T16:28+08:00
+update   log  :
+
+First release of Janus.
+
+Janus is a high-performance file sync tool built to provide superior performance to rsync in large-scale directories with hundreds of thousands of files.
+
+Janus leverages Kotlin Coroutines alongside Java NIO's asynchronous file and Netty's networking capabilities to maximize overall system performance.

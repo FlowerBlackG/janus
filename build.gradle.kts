@@ -8,10 +8,10 @@ plugins {
     id("com.gradleup.shadow") version "9.3.0"
 }
 
-val versionMajor = 0
+val versionMajor = 1
 val versionMinor = 0
-val versionPatch = 1
-val versionTail = "-alpha-evaluation"  // like: -dev
+val versionPatch = 0
+val versionTail = ""  // like: -dev
 
 /** Only used to tell Gradle re-generate Version.kt. */
 val nonce = "32ca4021-c181-46f4-86be-fb2458c82cc1"

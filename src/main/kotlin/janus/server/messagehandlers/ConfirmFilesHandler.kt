@@ -28,7 +28,7 @@ class ConfirmFilesHandler(
             buf.putInt(it.second)
         }
 
-        conn.sendResponse(0, buf.flip())
+        conn.sendResponse(0, data = buf.flip())
     }
 
 }

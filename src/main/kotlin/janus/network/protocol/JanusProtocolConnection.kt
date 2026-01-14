@@ -29,7 +29,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         janusSocket.write(janusMsg.toByteBuffer())
     }
 
-    suspend fun sendResponse(code: Int, data: ByteBuffer? = null, errData: ByteBuffer? = null) {
+    suspend fun sendResponse(code: Int, msg: ByteBuffer? = null, data: ByteBuffer? = null) {
         val response = JanusMessage.create(JanusMessage.CommonResponse.typeCode) as JanusMessage.CommonResponse
         response.code = code
         response.data = data?.let {
@@ -38,7 +38,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
             arr
         } ?: byteArrayOf()
 
-        response.errData = errData?.let {
+        response.msgAsBytes = msg?.let {
             val arr = ByteArray(it.remaining())
             it.get(arr)
             arr
@@ -48,24 +48,24 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         JanusMessage.recycle(response)
     }
 
-    suspend fun sendResponse(code: Int, data: ByteArray?, errData: ByteArray? = null) {
+    suspend fun sendResponse(code: Int, msg: ByteArray?, data: ByteArray?) {
         return this.sendResponse(
             code,
-            ByteBuffer.wrap(data ?: byteArrayOf()),
-            ByteBuffer.wrap(errData ?: byteArrayOf())
+            ByteBuffer.wrap(msg ?: byteArrayOf()),
+            ByteBuffer.wrap(data ?: byteArrayOf())
         )
     }
 
-    suspend fun sendResponse(code: Int, msg: String?, errMsg: String? = null) {
-        return this.sendResponse(code, msg?.toByteArray(StandardCharsets.UTF_8), errMsg?.toByteArray(StandardCharsets.UTF_8))
+    suspend fun sendResponse(code: Int, msg: String?, data: String? = null) {
+        return this.sendResponse(code, msg?.toByteArray(StandardCharsets.UTF_8), data?.toByteArray(StandardCharsets.UTF_8))
     }
 
-    suspend fun sendResponse(code: Int, msg: String?, errData: ByteArray?) {
-        return this.sendResponse(code, msg?.toByteArray(StandardCharsets.UTF_8), errData)
+    suspend fun sendResponse(code: Int, msg: String? = null, data: ByteArray?) {
+        return this.sendResponse(code, msg?.toByteArray(StandardCharsets.UTF_8), data)
     }
 
-    suspend fun sendResponse(code: Int, data: ByteArray?, errMsg: String?) {
-        return this.sendResponse(code, data, errMsg?.toByteArray(StandardCharsets.UTF_8))
+    suspend fun sendResponse(code: Int, msg: ByteArray?, data: String?) {
+        return this.sendResponse(code, msg, data?.toByteArray(StandardCharsets.UTF_8))
     }
 
 

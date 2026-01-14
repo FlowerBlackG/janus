@@ -24,6 +24,6 @@ class ConfirmArchivesHandler(val extractorPool: ArchiveExtractorPool) : MessageH
                 .putInt(status)
         }
 
-        conn.sendResponse(code = 0, bArr)  // TODO: Report error on any archive failure?
+        conn.sendResponse(code = 0, data = bArr)  // TODO: Report error on any archive failure?
     }
 }

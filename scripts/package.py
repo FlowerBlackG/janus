@@ -191,6 +191,15 @@ def package_platform(platform: Platform, version_tag: str) -> int:
                 # Fallback for older Python versions that don't support the filter argument
                 tar_ref.extractall(platform_tmp_folder)
 
+            # Fix permissions.
+            for member in tar_ref.getmembers():
+                if not member.isfile():
+                    continue
+                if member.mode & 0o111:
+                    extract_path = platform_tmp_folder / member.name
+                    os.chmod(extract_path, os.stat(extract_path).st_mode | 0o111)
+                    
+
     # 4. Copy JAR from LIBS_DIR to platform_tmp_folder
     jar_name = f"janus-{version_tag}-{platform.jar_platform_classifier}.jar"
     source_jar = LIBS_DIR / jar_name

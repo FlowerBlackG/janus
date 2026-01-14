@@ -136,7 +136,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         JanusMessage.recycle(fromClient, toClient, finalMsg)
     }
-    protected suspend fun clientModeClient() {
+    protected suspend fun clientModeHello() {
         Logger.info("Running client mode Hello.")
         val toServer = JanusMessage.create(JanusMessage.Hello.typeCode) as JanusMessage.Hello
         toServer.protocolVersions += JanusMessage.PROTOCOL_VERSION
@@ -155,7 +155,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
     suspend fun hello(mode: Role) {
         when (mode) {
             Role.SERVER -> serverModeHello()
-            Role.CLIENT -> clientModeClient()
+            Role.CLIENT -> clientModeHello()
         }
     }
 

@@ -20,6 +20,7 @@ import io.netty.handler.ssl.SslContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.SocketAddress
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.Continuation
@@ -193,7 +194,7 @@ class NettySocket(
                 readBuffer = null
             }
             channel?.close()
-            workGroup?.shutdownGracefully()
+            workGroup?.shutdownGracefully(0, 60, TimeUnit.SECONDS)
             workGroup = null
         }
     }

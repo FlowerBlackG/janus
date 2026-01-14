@@ -178,18 +178,34 @@ sealed class JanusMessage private constructor() {
         }
 
         override val type get() = typeCode
-        override val bodyLength get() = (Int.SIZE_BYTES * 2 + msg.size).toLong()
+        override val bodyLength: Long get() {
+            return 0L +
+                    Int.SIZE_BYTES * 2 +
+                    data.size +
+                    (if (success) 0 else errData.size)
+        }
 
         var code = 0
-        var msg = ByteArray(0)
-        var msgString: String
-            get() = String(msg, StandardCharsets.UTF_8)
+
+        /*
+            msg and data are the same.
+
+            if code is 0, data's end is the end of the entire protocol message;
+            or, maybe errMsg followed by msg.
+        */
+        var data = ByteArray(0)
+        var msg: String
+            get() = String(data, StandardCharsets.UTF_8)
             set(value) {
-                this.msg = value.toByteArray(StandardCharsets.UTF_8)
+                this.data = value.toByteArray(StandardCharsets.UTF_8)
             }
-        var data: ByteArray get() = msg
+
+
+        var errData = ByteArray(0)
+        var errMsg: String
+            get() = String(errData, StandardCharsets.UTF_8)
             set(value) {
-                this.msg = value
+                this.errData = value.toByteArray(StandardCharsets.UTF_8)
             }
 
         val success get() = code == 0
@@ -202,24 +218,37 @@ sealed class JanusMessage private constructor() {
             code = data.getInt()
             val msgLen = data.getInt()
 
-            if (data.remaining() < msgLen) {
+            if (!success && data.remaining() < msgLen) {
                 throw Exception("length ${data.remaining()} is less than msg-len $msgLen")
             }
 
-            msg = ByteArray(msgLen)
-            data.get(msg)
+            this.data = ByteArray(if (success) data.remaining() else msgLen)
+            data.get(this.data)
+
+            if (success && data.hasRemaining()) {
+                Logger.error("Received response for success, but still have ${data.remaining()} byte(s) for errMsg.")
+                return
+            }
+
+            this.errData = ByteArray(data.remaining())
+            data.get(this.errData)
         }
 
 
         override fun encodeBody(container: ByteBuffer) {
             container.putInt(code)
-            container.putInt(msg.size)
-            container.put(msg)
+            container.putInt(data.size)
+            container.put(data)
+
+            if (!success)
+                container.put(errData)
         }
 
 
         override fun reset() {
-            msg = byteArrayOf()
+            data = byteArrayOf()
+            errData = byteArrayOf()
+            code = 0
         }
     }
 

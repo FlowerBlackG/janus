@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.Path
+import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.declaredMemberProperties
@@ -410,7 +411,7 @@ sealed class JanusMessage private constructor() {
 
         var path: Path
             get() = Path(pathString)
-            set(value) { pathString = value.toString() }
+            set(value) { pathString = value.invariantSeparatorsPathString }
         var pathString: String = ""
         var pathBytes
             get() = pathString.encodeToByteArray()

@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
 
 
 /**
@@ -21,8 +22,15 @@ object GlobalCoroutineScopes {
 
     val scopes = setOf(IO, Default)
 
-    suspend fun joinChildren() {
-        scopes.forEach { it.joinChildren() }
+    /**
+     * You should only call this outside any coroutine scopes.
+     *
+     * NEVER CALL THIS INSIDE ANY COROUTINE SCOPES.
+     */
+    fun joinChildren(nothrow: Boolean = false) {
+        runBlocking {
+            scopes.forEach { it.joinChildren(nothrow = nothrow) }
+        }
     }
 
     fun activeJobCount(): Int {
@@ -46,6 +54,9 @@ fun CoroutineScope.activeJobCount(): Int {
 }
 
 
-suspend fun CoroutineScope.joinChildren() {
-    this.coroutineContext.job.children.forEach { it.join() }
+suspend fun CoroutineScope.joinChildren(nothrow: Boolean = false) {
+    if (nothrow)
+        this.coroutineContext.job.children.forEach { it.runCatching { join() } }
+    else
+        this.coroutineContext.job.children.forEach { it.join() }
 }

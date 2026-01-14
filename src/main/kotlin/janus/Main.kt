@@ -117,9 +117,7 @@ fun main(args: Array<String>) {
         Logger.error("$activeJobCount job(s) are still running. This is not expected!")
     }
 
-    runBlocking {
-        runCatching { GlobalCoroutineScopes.joinChildren() }
-    }
+    GlobalCoroutineScopes.joinChildren(nothrow = true)
 
     Logger.info("bye~~")
 

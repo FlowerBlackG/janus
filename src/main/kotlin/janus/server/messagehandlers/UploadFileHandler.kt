@@ -20,7 +20,17 @@ class UploadFileHandler(
 ) : MessageHandler<JanusMessage.UploadFile> {
 
     override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage.UploadFile) {
-        val path = ws.path.resolve(msg.path)
+        val path = runCatching { ws.path.resolve(msg.path) }
+            .onFailure {
+                val errMsg = "Failed to resolve path. from ${ws.path} to ${msg.pathString}. ${it.message}"
+                Logger.error(errMsg)
+                if (msg.asyncAck)
+                    pendingACKsHolder += Pair(msg.seqId, 1)
+                else
+                    conn.sendResponse(1, msg = errMsg)
+            }
+            .getOrNull() ?: return
+
         val absPath = path.absolute().normalize()
         if (!absPath.startsWith(ws.path.absolute().normalize())) {
             throw Exception("Path is out of workspace")

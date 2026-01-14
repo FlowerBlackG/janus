@@ -47,9 +47,9 @@ You can access protocol version n by reading `protocol/{n}.md`, in which `{n}` i
 
 ## Janus Releases
 
-| Family | First Release Date | Latest | Latest Release Date | Protocol Version(s) |
-| ------ | ------------------ | ------ | ------------------- | ------------------- |
-| 1.0    | TBD                | 1.0.0  | TBD                 | 1                   |
+| Family | First Release Date     | Latest | Latest Release Date    | Protocol Version(s) |
+| ------ | ---------------------- | ------ | ---------------------- | ------------------- |
+| 1.0    | 2026-01-14T16:28+08:00 | 1.0.1  | 2026-01-14T18:36+08:00 | 1                   |
 
 ## Requirements
 

@@ -10,7 +10,7 @@ plugins {
 
 val versionMajor = 1
 val versionMinor = 0
-val versionPatch = 0
+val versionPatch = 1
 val versionTail = ""  // like: -dev
 
 /** Only used to tell Gradle re-generate Version.kt. */

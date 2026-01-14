@@ -392,11 +392,13 @@ sealed class JanusMessage private constructor() {
 
         var fileSize: Long = 0L
 
-        var path: Path = Path("")
-        val pathString: String
-            get() = path.toString().replace('\\', '/')
-        val pathBytes
+        var path: Path
+            get() = Path(pathString)
+            set(value) { pathString = value.toString() }
+        var pathString: String = ""
+        var pathBytes
             get() = pathString.encodeToByteArray()
+            set(value) { pathString = value.decodeToString() }
 
         var seqId: Long = 0L
         var permBits: Int = 0
@@ -409,7 +411,7 @@ sealed class JanusMessage private constructor() {
             fileSize = data.getLong()
             val byteArr = ByteArray(data.remaining())
             data.get(byteArr)
-            path = Path(byteArr.decodeToString())
+            pathBytes = byteArr
         }
 
         override fun encodeBody(container: ByteBuffer) {

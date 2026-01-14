@@ -2,7 +2,6 @@
 
 package io.github.flowerblackg.janus.filesystem
 
-import io.github.flowerblackg.janus.config.Config
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
 import io.github.flowerblackg.janus.logging.Logger
 import kotlinx.coroutines.async
@@ -11,7 +10,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.protobuf.ProtoBuf
-import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
@@ -77,9 +75,19 @@ data class FileTree(
     private fun reconstruct(currentPath: Path, parentNode: FileTree?) {
         this.parent = parentNode
         this.path = currentPath
+        val childrenToDrop = mutableSetOf<String>()
         for (child in children) {
-            child.reconstruct(currentPath.resolve(child.name), this)
+            val childPath = runCatching { currentPath.resolve(child.name) }.onFailure {
+                Logger.warn("Failed to resolve child path for ${child.name} (in directory $currentPath):")
+                Logger.warn("> ${it.message}")
+                Logger.warn("> File ignored. Just like it doesn't exists.")
+                childrenToDrop += child.name
+            }.getOrNull()
+
+            childPath?.let { child.reconstruct(it, this) }
         }
+
+        children = children.filterNot { it.name in childrenToDrop }.toMutableList()
     }
 
 

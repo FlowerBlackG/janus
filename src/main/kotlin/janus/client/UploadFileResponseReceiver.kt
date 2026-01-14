@@ -3,6 +3,7 @@
 package io.github.flowerblackg.janus.client
 
 import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janus.logging.Logger
 import io.github.flowerblackg.janus.network.protocol.JanusMessage
 import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
 import kotlinx.coroutines.Job
@@ -31,12 +32,15 @@ class UploadFileResponseReceiver(
 
     protected suspend fun receiverLoop() {
         for (seqId in seqIdChannel) {
-            val res = conn.recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed to receive ACK for upload file.")
-
+            val res = conn.recvResponse()
             val seqIdFromResponse = if (res.data.size != Long.SIZE_BYTES) null else ByteBuffer.wrap(res.data).getLong()
 
             if (seqIdFromResponse != seqId)
                 throw Exception("Failed to receive ack for file. Expected $seqId, but got $seqIdFromResponse.")
+
+            if (!res.success) {
+                Logger.error("Something went wrong for file with seqId $seqId. ${res.msg}")
+            }
         }
     }
 

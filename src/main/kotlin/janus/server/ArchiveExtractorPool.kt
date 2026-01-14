@@ -124,14 +124,12 @@ class ArchiveExtractorPool {
                 continue
             }
 
-            val seqFromRet = runCatching { job.await() }.getOrNull() ?: run {
-                ret += Pair(seqId, 1)
-                null
-            }
-
-            seqFromRet?.let {
-                ret += Pair(seqId, if (seqFromRet == seqId) 0 else 1)
-            }
+            runCatching { job.await() }
+                .onSuccess {
+                    ret += Pair(seqId, if (it == seqId) 0 else 1)
+                }.onFailure {
+                    ret += Pair(seqId, 1)
+                }
         }
         extractorJobs.clear()
         extractorJobs.putAll(pending)

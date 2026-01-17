@@ -37,7 +37,7 @@ dependencies {
     implementation(kotlin("reflect"))
 
     // https://mvnrepository.com/artifact/org.json/json
-    implementation("org.json:json:20250517")
+    implementation("org.json:json:20251224")
 
     // https://mvnrepository.com/artifact/io.netty/netty-all
     implementation("io.netty:netty-all:4.2.9.Final")

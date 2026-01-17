@@ -251,7 +251,6 @@ class NettySocket(
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
         // Already on EventLoop
-        Logger.error(trace = cause)
         readContinuation?.resumeWithException(cause)
         readContinuation = null
         readBuffer = null

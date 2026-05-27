@@ -61,8 +61,8 @@ platforms = {
     "linux-x86_64": Platform(
         key="linux-x86_64",
         jdk=JDK(
-            id="kona-25.0.1-linux-x86_64",
-            download_url="https://github.com/Tencent/TencentKona-25/releases/download/TencentKona-25.0.1/TencentKona-25.0.1.b1-jdk_linux-x86_64.tar.gz",
+            id="kona-25.0.3-linux-x86_64",
+            download_url="https://github.com/Tencent/TencentKona-25/releases/download/TencentKona-25.0.3/TencentKona-25.0.3.b1-jdk_linux-x86_64.tar.gz",
             archive_type=ArchiveType.TGZ,
         ),
         jar_platform_classifier="linux-x86_64",

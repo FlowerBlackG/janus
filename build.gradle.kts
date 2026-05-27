@@ -25,14 +25,14 @@ repositories {
 
 dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-protobuf
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.11.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-io-core
-    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.9.0")
 
     implementation(kotlin("reflect"))
 
@@ -40,9 +40,9 @@ dependencies {
     implementation("org.json:json:20251224")
 
     // https://mvnrepository.com/artifact/io.netty/netty-all
-    implementation("io.netty:netty-all:4.2.9.Final")
+    implementation("io.netty:netty-all:4.2.14.Final")
     // https://mvnrepository.com/artifact/io.netty/netty-pkitesting
-    implementation("io.netty:netty-pkitesting:4.2.9.Final")
+    implementation("io.netty:netty-pkitesting:4.2.14.Final")
 
 
 
@@ -161,7 +161,7 @@ platforms.forEach { (platformKey, platform) ->
 
     dependencies {
         // https://mvnrepository.com/artifact/io.netty/netty-tcnative-boringssl-static
-        platformImplementation("io.netty:netty-tcnative-boringssl-static:2.0.74.Final") {
+        platformImplementation("io.netty:netty-tcnative-boringssl-static:2.0.77.Final") {
             artifact {
                 classifier = platform.classifiers.nettyTcnativeBoringsslStatic
             }

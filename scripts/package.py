@@ -38,7 +38,7 @@ class Platform:
 
 PROJECT_ROOT = Path(__file__).parent.parent
 LIBS_DIR = PROJECT_ROOT / "build" / "libs"
-APP_NAME = "janus"
+APP_NAME = "janice"
 WORK_DIR = PROJECT_ROOT / "target" / "packaging"
 TMP_DIR = WORK_DIR / "tmp"
 OUTPUT_DIR = WORK_DIR / "output"
@@ -201,7 +201,7 @@ def package_platform(platform: Platform, version_tag: str) -> int:
                     
 
     # 4. Copy JAR from LIBS_DIR to platform_tmp_folder
-    jar_name = f"janus-{version_tag}-{platform.jar_platform_classifier}.jar"
+    jar_name = f"janice-{version_tag}-{platform.jar_platform_classifier}.jar"
     source_jar = LIBS_DIR / jar_name
     dest_jar = platform_tmp_folder / jar_name
 
@@ -226,7 +226,7 @@ def package_platform(platform: Platform, version_tag: str) -> int:
         return 1
 
     # 6. Create run script
-    script_base_name = f"run-janus"
+    script_base_name = f"run-janice"
     if platform.shell_type == ShellType.BAT:
         script_name = f"{script_base_name}.bat"
         content = generate_bat_script(str(java_bin_path), jar_name)
@@ -243,7 +243,7 @@ def package_platform(platform: Platform, version_tag: str) -> int:
         script_path.chmod(0o755)
 
     # 7. Move platform_tmp_folder to OUTPUT_DIR and rename
-    final_dir_name = f"janus-{version_tag}-{platform.key}"
+    final_dir_name = f"janice-{version_tag}-{platform.key}"
     final_path = OUTPUT_DIR / final_dir_name
     
     if final_path.exists():
@@ -270,7 +270,7 @@ def package_platform(platform: Platform, version_tag: str) -> int:
 
 
 def main() -> int:
-    argparser = argparse.ArgumentParser(description="Package Janus for deployment.")
+    argparser = argparse.ArgumentParser(description="Package Janice for deployment.")
     argparser.add_argument("--version", type=str, required=True, help="Version tag for the package. Like: 0.0.1")
     args = argparser.parse_args()
 

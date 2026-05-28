@@ -1,5 +1,5 @@
 {
-    // should janus run in "server" or "client" mode.
+    // should janice run in "server" or "client" mode.
     // but preferred to specify using commandline --server or --client.
     "mode": "",
 
@@ -9,7 +9,7 @@
           For server, global host and port specify which ip and port server listens to.
           Must have.
 
-          It is designed for one janus server to serve multiple workspaces on same port.
+          It is designed for one janice server to serve multiple workspaces on same port.
 
           For client, global host and port is just a fallback for workspaces.
           It specifies where the server is.
@@ -50,7 +50,7 @@
     // for server, this is used for every connection.
     // for clients, maybe it is better to set per-workspace ssl. this is the fallback.
     //
-    // you can generate self-signed cert by calling `janus --generate-ssl-cert`
+    // you can generate self-signed cert by calling `janice --generate-ssl-cert`
     "ssl": {
         "key": "/path/to/ssl/key.pem",
         "cert": "/path/to/ssl/cert.pem"
@@ -60,7 +60,7 @@
     // each "workspace" is a folder. of course you can make multiple workspaces point to same folder, 
     // or sub-folders of same parent folder.
     // for client, if only one workspace configured, it will be selected by default. if multiple, you should
-    // tell janus which one to use by --workspace commandline argument.
+    // tell janice which one to use by --workspace commandline argument.
     "workspaces": [
         {
             // specifier. pair of name and role need to be unique.
@@ -75,7 +75,7 @@
             "remote_name": "project",
 
             // "server" or "client"
-            // when running janus in --server, only workspaces with role "server" are loaded. for --client, only "client" ones are loaded.
+            // when running janice in --server, only workspaces with role "server" are loaded. for --client, only "client" ones are loaded.
             "role": "",
             // for client and server, this value can be different, but points to same folder that wants to mirror.
             // for example, maybe your server's path is /home/user/project, but client's path is D:/my_work_proj

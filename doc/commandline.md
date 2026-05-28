@@ -1,4 +1,4 @@
-# Janus Commandline
+# Janice Commandline
 
 ## Common
 
@@ -6,7 +6,7 @@
 
 Specify run mode. Have higher priority than config.json.
 
-If not found in both commandline and config.json, Janus will quit.
+If not found in both commandline and config.json, Janice will quit.
 
 ### --ip [value] / --host [value]
 
@@ -38,7 +38,7 @@ Configuring workspaces in config.json is highly recommended. This cli is for tem
 
 ### --secret [value]
 
-AES key, paired to --path. If not set, connection to server will not be authenticated. If server requires authentication, Janus will quit.
+AES key, paired to --path. If not set, connection to server will not be authenticated. If server requires authentication, Janice will quit.
 
 Type: plain text.
 
@@ -54,7 +54,7 @@ Path to ssl key. Optional, but highly recommended.
 
 ---
 
-## Janus Server
+## Janice Server
 
 ### --port [value]
 
@@ -62,7 +62,7 @@ Specify a port to listen. If not set, port is selected automatically.
 
 ---
 
-## Janus Client
+## Janice Client
 
 ### --dangling [value]
 
@@ -72,11 +72,11 @@ Optional. If set, will be the default way to solve dangling files.
 
 ---
 
-## Janus Subprograms
+## Janice Subprograms
 
 ### --version
 
-Show Janus version and exit.
+Show Janice version and exit.
 
 ### --help / --usage
 

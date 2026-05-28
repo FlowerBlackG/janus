@@ -1,3 +1,13 @@
+version  tag  : 1.0.2
+complete time : 2026-05-29T01:37+08:00
+update   log  :
+
+Remove duplicate stack trace printing when NettySocket encounters network errors.
+
+Update dependencies' version.
+
+--------------------------------
+
 version  tag  : 1.0.1
 complete time : 2026-01-14T18:36+08:00
 update   log  :

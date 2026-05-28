@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.miniprograms
+package io.github.flowerblackg.janice.miniprograms
 
-import io.github.flowerblackg.janus.config.RawConfig
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.netty.NettySslUtils
+import io.github.flowerblackg.janice.config.RawConfig
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.netty.NettySslUtils
 import kotlin.io.path.Path
 
 

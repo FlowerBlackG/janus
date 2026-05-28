@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class ConfirmFilesHandler(
     val pendingACKsHolder: ConcurrentLinkedQueue<Pair<Long, Int>>
-) : MessageHandler<JanusMessage.ConfirmFiles> {
+) : MessageHandler<JaniceMessage.ConfirmFiles> {
     override suspend fun handle(
-        conn: JanusProtocolConnection,
-        msg: JanusMessage.ConfirmFiles
+        conn: JaniceProtocolConnection,
+        msg: JaniceMessage.ConfirmFiles
     ) {
         val acks = ArrayList<Pair<Long, Int>>()
 

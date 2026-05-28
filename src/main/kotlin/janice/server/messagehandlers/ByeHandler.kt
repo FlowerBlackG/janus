@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
-import io.github.flowerblackg.janus.server.Lounge
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
+import io.github.flowerblackg.janice.server.Lounge
 
-class ByeHandler(val lounge: Lounge) : MessageHandler<JanusMessage.Bye> {
+class ByeHandler(val lounge: Lounge) : MessageHandler<JaniceMessage.Bye> {
     override suspend fun handle(
-        conn: JanusProtocolConnection,
-        msg: JanusMessage.Bye
+        conn: JaniceProtocolConnection,
+        msg: JaniceMessage.Bye
     ) {
         conn.bye(expectResponse = false)
         lounge.stop()

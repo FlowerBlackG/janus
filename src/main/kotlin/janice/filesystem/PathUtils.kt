@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.filesystem
+package io.github.flowerblackg.janice.filesystem
 
 import kotlin.io.path.Path
 

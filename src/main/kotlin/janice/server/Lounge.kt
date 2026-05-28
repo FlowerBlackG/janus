@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server
+package io.github.flowerblackg.janice.server
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
-import io.github.flowerblackg.janus.server.messagehandlers.ByeHandler
-import io.github.flowerblackg.janus.server.messagehandlers.CommitSyncPlanHandler
-import io.github.flowerblackg.janus.server.messagehandlers.ConfirmArchivesHandler
-import io.github.flowerblackg.janus.server.messagehandlers.ConfirmFilesHandler
-import io.github.flowerblackg.janus.server.messagehandlers.FetchFileTreeHandler
-import io.github.flowerblackg.janus.server.messagehandlers.GetSystemTimeMillisHandler
-import io.github.flowerblackg.janus.server.messagehandlers.MessageHandler
-import io.github.flowerblackg.janus.server.messagehandlers.UploadArchiveHandler
-import io.github.flowerblackg.janus.server.messagehandlers.UploadFileHandler
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
+import io.github.flowerblackg.janice.server.messagehandlers.ByeHandler
+import io.github.flowerblackg.janice.server.messagehandlers.CommitSyncPlanHandler
+import io.github.flowerblackg.janice.server.messagehandlers.ConfirmArchivesHandler
+import io.github.flowerblackg.janice.server.messagehandlers.ConfirmFilesHandler
+import io.github.flowerblackg.janice.server.messagehandlers.FetchFileTreeHandler
+import io.github.flowerblackg.janice.server.messagehandlers.GetSystemTimeMillisHandler
+import io.github.flowerblackg.janice.server.messagehandlers.MessageHandler
+import io.github.flowerblackg.janice.server.messagehandlers.UploadArchiveHandler
+import io.github.flowerblackg.janice.server.messagehandlers.UploadFileHandler
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
@@ -24,12 +24,12 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * Lounge is one time use. You should only call [serve] once.
  */
 class Lounge (
-    val conn: JanusProtocolConnection,
+    val conn: JaniceProtocolConnection,
     val config: Config
 ): AutoCloseable {
 
     protected enum class MessageHandlerLife { ONCE, ETERNAL }
-    protected val msgHandlers = mutableMapOf<Int, Pair<MessageHandlerLife, MessageHandler<JanusMessage>>>()
+    protected val msgHandlers = mutableMapOf<Int, Pair<MessageHandlerLife, MessageHandler<JaniceMessage>>>()
 
     protected val archiveExtractorPool = ArchiveExtractorPool()
 
@@ -39,9 +39,9 @@ class Lounge (
     protected val uploadFilePendingACKs = ConcurrentLinkedQueue<Pair<Long, Int>>()
 
 
-    protected fun <T: JanusMessage> handle(msgType: Int, life: MessageHandlerLife, handler: MessageHandler<T>) {
-        val typeErasedAdapter = object : MessageHandler<JanusMessage> {
-            override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage) {
+    protected fun <T: JaniceMessage> handle(msgType: Int, life: MessageHandlerLife, handler: MessageHandler<T>) {
+        val typeErasedAdapter = object : MessageHandler<JaniceMessage> {
+            override suspend fun handle(conn: JaniceProtocolConnection, msg: JaniceMessage) {
                 @Suppress("UNCHECKED_CAST")
                 handler.handle(conn, msg as T)
             }
@@ -50,11 +50,11 @@ class Lounge (
         msgHandlers[msgType] = Pair(life, typeErasedAdapter)
     }
 
-    protected fun <T: JanusMessage> handle(msgType: Int, handler: MessageHandler<T>) {
+    protected fun <T: JaniceMessage> handle(msgType: Int, handler: MessageHandler<T>) {
         handle(msgType, MessageHandlerLife.ETERNAL, handler)
     }
 
-    protected fun handleOnce(msgType: Int, handler: MessageHandler<JanusMessage>) {
+    protected fun handleOnce(msgType: Int, handler: MessageHandler<JaniceMessage>) {
         handle(msgType, MessageHandlerLife.ONCE, handler)
     }
 
@@ -69,7 +69,7 @@ class Lounge (
     protected var workspace: Config.WorkspaceConfig = Config.WorkspaceConfig()
 
 
-    protected suspend fun handleMessage(msg: JanusMessage) {
+    protected suspend fun handleMessage(msg: JaniceMessage) {
         val (life, handler) = msgHandlers[msg.type] ?: throw Exception("No handler for message type: ${msg.type}")
         val exception = runCatching { handler.handle(conn = conn, msg = msg) }.exceptionOrNull()
         if (life == MessageHandlerLife.ONCE)
@@ -90,7 +90,7 @@ class Lounge (
      * No throw.
      */
     protected suspend fun helloAndAuth(): Unit? {
-        runCatching { conn.hello(JanusProtocolConnection.Role.SERVER)  }.onFailure {
+        runCatching { conn.hello(JaniceProtocolConnection.Role.SERVER)  }.onFailure {
             Logger.error("Failed to serve client. Failed on Hello.")
             return null
         }
@@ -128,20 +128,20 @@ class Lounge (
         }
         served = true
 
-        Logger.info("Welcome ${conn.janusSocket.remoteAddress} to Lounge.")
+        Logger.info("Welcome ${conn.janiceSocket.remoteAddress} to Lounge.")
         helloAndAuth() ?: return 1
 
         if (onAuthorized?.let { it(this.workspace) } == false)
             return 2
 
-        handle(JanusMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
-        handle(JanusMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
-        handle(JanusMessage.CommitSyncPlan.typeCode, CommitSyncPlanHandler(workspace))
-        handle(JanusMessage.UploadFile.typeCode, UploadFileHandler(workspace, uploadFilePendingACKs))
-        handle(JanusMessage.UploadArchive.typeCode, UploadArchiveHandler(this.archiveExtractorPool))
-        handle(JanusMessage.ConfirmArchives.typeCode, ConfirmArchivesHandler(this.archiveExtractorPool))
-        handle(JanusMessage.ConfirmFiles.typeCode, ConfirmFilesHandler(uploadFilePendingACKs))
-        handle(JanusMessage.Bye.typeCode, ByeHandler(this))
+        handle(JaniceMessage.FetchFileTree.typeCode, FetchFileTreeHandler(workspace))
+        handle(JaniceMessage.GetSystemTimeMillis.typeCode, GetSystemTimeMillisHandler())
+        handle(JaniceMessage.CommitSyncPlan.typeCode, CommitSyncPlanHandler(workspace))
+        handle(JaniceMessage.UploadFile.typeCode, UploadFileHandler(workspace, uploadFilePendingACKs))
+        handle(JaniceMessage.UploadArchive.typeCode, UploadArchiveHandler(this.archiveExtractorPool))
+        handle(JaniceMessage.ConfirmArchives.typeCode, ConfirmArchivesHandler(this.archiveExtractorPool))
+        handle(JaniceMessage.ConfirmFiles.typeCode, ConfirmFilesHandler(uploadFilePendingACKs))
+        handle(JaniceMessage.Bye.typeCode, ByeHandler(this))
 
         running = true
         while (running) {

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.client
+package io.github.flowerblackg.janice.client
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
-import io.github.flowerblackg.janus.filesystem.SyncPlan
-import io.github.flowerblackg.janus.filesystem.getPermissionMask
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.filesystem.MemoryMappedFile
+import io.github.flowerblackg.janice.filesystem.SyncPlan
+import io.github.flowerblackg.janice.filesystem.getPermissionMask
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import kotlin.use

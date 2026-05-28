@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.filesystem.FSUtils
-import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.filesystem.FSUtils
+import io.github.flowerblackg.janice.filesystem.MemoryMappedFile
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -17,9 +17,9 @@ import kotlin.io.path.name
 class UploadFileHandler(
     val ws: Config.WorkspaceConfig,
     val pendingACKsHolder: ConcurrentLinkedQueue<Pair<Long, Int>>
-) : MessageHandler<JanusMessage.UploadFile> {
+) : MessageHandler<JaniceMessage.UploadFile> {
 
-    override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage.UploadFile) {
+    override suspend fun handle(conn: JaniceProtocolConnection, msg: JaniceMessage.UploadFile) {
         val path = runCatching { ws.path.resolve(msg.path) }
             .onFailure {
                 val errMsg = "Failed to resolve path. from ${ws.path} to ${msg.pathString}. ${it.message}"
@@ -41,7 +41,7 @@ class UploadFileHandler(
 
         val beginTimeMillis = System.currentTimeMillis()
 
-        val tmpPath = absPath.resolveSibling("${absPath.name}.janus-sync-tmp")
+        val tmpPath = absPath.resolveSibling("${absPath.name}.janice-sync-tmp")
 
         MemoryMappedFile.createAndMap(tmpPath, size = msg.fileSize, permissionBits = msg.permBits).use { file ->
             file.writePos = 0
@@ -50,7 +50,7 @@ class UploadFileHandler(
             // start accepting file.
 
             while (remaining > 0) {
-                val block = conn.recvMessage(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
+                val block = conn.recvMessage(JaniceMessage.DataBlock.typeCode) as JaniceMessage.DataBlock
                 file.write(block.dataBuffer)
 
                 remaining -= block.dataBlock.size

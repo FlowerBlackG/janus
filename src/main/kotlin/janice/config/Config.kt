@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.config
+package io.github.flowerblackg.janice.config
 
-import io.github.flowerblackg.janus.crypto.AesHelper
-import io.github.flowerblackg.janus.filesystem.toPath
-import io.github.flowerblackg.janus.network.netty.toSslClientContext
-import io.github.flowerblackg.janus.network.netty.tryToSslServerContext
+import io.github.flowerblackg.janice.crypto.AesHelper
+import io.github.flowerblackg.janice.filesystem.toPath
+import io.github.flowerblackg.janice.network.netty.toSslClientContext
+import io.github.flowerblackg.janice.network.netty.tryToSslServerContext
 import io.netty.handler.ssl.SslContext
 import org.json.JSONObject
 import java.io.File

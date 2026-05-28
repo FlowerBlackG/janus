@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.filesystem
+package io.github.flowerblackg.janice.filesystem
 
 
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.logging.Logger
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path

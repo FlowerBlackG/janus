@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.netty
+package io.github.flowerblackg.janice.network.netty
 
-import io.github.flowerblackg.janus.network.JanusServerSocket
-import io.github.flowerblackg.janus.network.JanusSocket
+import io.github.flowerblackg.janice.network.JaniceServerSocket
+import io.github.flowerblackg.janice.network.JaniceSocket
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.ChannelOption
@@ -23,18 +23,18 @@ private val workerGroupNThreads = nCpus.coerceIn(4 .. 9)
 
 class NettyServerSocket(
     protected val sslContext: SslContext? = null
-) : JanusServerSocket() {
+) : JaniceServerSocket() {
     protected val bossGroup = MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
     protected val workerGroup = MultiThreadIoEventLoopGroup(workerGroupNThreads, NioIoHandler.newFactory())
 
     protected var serverChannel: NettyChannel? = null
 
-    protected val acceptedQueue = KChannel<JanusSocket>(KChannel.UNLIMITED)
+    protected val acceptedQueue = KChannel<JaniceSocket>(KChannel.UNLIMITED)
 
     override val localAddress: SocketAddress?
         get() = serverChannel?.localAddress()
 
-    override fun bind(localAddr: SocketAddress): JanusServerSocket {
+    override fun bind(localAddr: SocketAddress): JaniceServerSocket {
         val b = ServerBootstrap()
         b.group(bossGroup, workerGroup)
             .channel(NioServerSocketChannel::class.java)
@@ -52,7 +52,7 @@ class NettyServerSocket(
         return this
     }
 
-    override suspend fun accept(): JanusSocket {
+    override suspend fun accept(): JaniceSocket {
         return acceptedQueue.receive()
     }
 

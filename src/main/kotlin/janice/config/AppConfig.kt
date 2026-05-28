@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.config
+package io.github.flowerblackg.janice.config
 
-import io.github.flowerblackg.janus.crypto.AesHelper
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.crypto.AesHelper
+import io.github.flowerblackg.janice.logging.Logger
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName

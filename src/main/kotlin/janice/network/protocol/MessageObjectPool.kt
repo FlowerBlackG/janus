@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.protocol
+package io.github.flowerblackg.janice.network.protocol
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class MessageObjectPool<T: JanusMessage>(private val factory: () -> T) {
+class MessageObjectPool<T: JaniceMessage>(private val factory: () -> T) {
     protected val pool = ConcurrentLinkedQueue<T>()
 
     fun borrow(): T {

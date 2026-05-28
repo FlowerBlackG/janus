@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.protocol
+package io.github.flowerblackg.janice.network.protocol
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.filesystem.FileTree
-import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
-import io.github.flowerblackg.janus.filesystem.SyncPlan
-import io.github.flowerblackg.janus.filesystem.getPermissionMask
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.JanusSocket
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.filesystem.FileTree
+import io.github.flowerblackg.janice.filesystem.MemoryMappedFile
+import io.github.flowerblackg.janice.filesystem.SyncPlan
+import io.github.flowerblackg.janice.filesystem.getPermissionMask
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.JaniceSocket
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
@@ -20,17 +20,17 @@ import kotlin.random.Random
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
+class JaniceProtocolConnection(val janiceSocket: JaniceSocket) : AutoCloseable {
     override fun close() {
-        janusSocket.close()
+        janiceSocket.close()
     }
 
-    suspend fun send(janusMsg: JanusMessage) {
-        janusSocket.write(janusMsg.toByteBuffer())
+    suspend fun send(janiceMsg: JaniceMessage) {
+        janiceSocket.write(janiceMsg.toByteBuffer())
     }
 
     suspend fun sendResponse(code: Int, msg: ByteBuffer? = null, data: ByteBuffer? = null) {
-        val response = JanusMessage.create(JanusMessage.CommonResponse.typeCode) as JanusMessage.CommonResponse
+        val response = JaniceMessage.create(JaniceMessage.CommonResponse.typeCode) as JaniceMessage.CommonResponse
         response.code = code
         response.data = data?.let {
             val arr = ByteArray(it.remaining())
@@ -45,7 +45,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         } ?: byteArrayOf()
         send(response)
 
-        JanusMessage.recycle(response)
+        JaniceMessage.recycle(response)
     }
 
     suspend fun sendResponse(code: Int, msg: ByteArray?, data: ByteArray?) {
@@ -73,20 +73,20 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
      *
      * @param throwOnFail Whether throw when Response code is not 0.
      */
-    suspend fun recvResponse(throwOnFail: Boolean = false, throwOnFailPrompt: String? = null): JanusMessage.CommonResponse {
-        val res = recvMessage(JanusMessage.CommonResponse.typeCode) as JanusMessage.CommonResponse
+    suspend fun recvResponse(throwOnFail: Boolean = false, throwOnFailPrompt: String? = null): JaniceMessage.CommonResponse {
+        val res = recvMessage(JaniceMessage.CommonResponse.typeCode) as JaniceMessage.CommonResponse
         if (throwOnFail && !res.success) {
             val throwMsg = throwOnFailPrompt ?: "Response code is not 0: ${res.code}. Message: ${res.msg}"
-            JanusMessage.recycle(res)
+            JaniceMessage.recycle(res)
             throw Exception(throwMsg)
         }
         return res
     }
 
     suspend fun recvHeader(): Pair<Int, Long>? {
-        val header = ByteBuffer.allocate(JanusMessage.HEADER_LENGTH)
-        runCatching { janusSocket.read(header) }.getOrNull() ?: return null
-        return JanusMessage.decodeHeader(header.flip())
+        val header = ByteBuffer.allocate(JaniceMessage.HEADER_LENGTH)
+        runCatching { janiceSocket.read(header) }.getOrNull() ?: return null
+        return JaniceMessage.decodeHeader(header.flip())
     }
 
     suspend fun recvBody(bodyLength: Long): ByteBuffer {
@@ -95,21 +95,21 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         }
 
         val buf = ByteBuffer.allocate(bodyLength.toInt())
-        janusSocket.read(buf)
+        janiceSocket.read(buf)
         return buf.flip()
     }
 
 
     @Throws(Exception::class)
-    suspend fun recvMessage(requiredMsgType: Int? = null): JanusMessage {
+    suspend fun recvMessage(requiredMsgType: Int? = null): JaniceMessage {
         val (msgType, bodyLength) = recvHeader() ?: throw Exception("Failed to recv header.")
         val body = recvBody(bodyLength)
 
         if (requiredMsgType != null && requiredMsgType != msgType)
             throw Exception("Wrong msg type: $msgType. Required msg type: $requiredMsgType")
 
-        val janusMsg = JanusMessage.decode(body, msgType)
-        return janusMsg
+        val janiceMsg = JaniceMessage.decode(body, msgType)
+        return janiceMsg
     }
 
 
@@ -119,38 +119,38 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
     protected suspend fun serverModeHello() {
         Logger.info("Running server mode Hello.")
 
-        val fromClient = recvMessage(JanusMessage.Hello.typeCode) as JanusMessage.Hello
-        if (fromClient.protocolVersions.firstOrNull() != JanusMessage.PROTOCOL_VERSION) {
+        val fromClient = recvMessage(JaniceMessage.Hello.typeCode) as JaniceMessage.Hello
+        if (fromClient.protocolVersions.firstOrNull() != JaniceMessage.PROTOCOL_VERSION) {
             throw Exception("Wrong protocol version: ${fromClient.protocolVersions.firstOrNull()}")
         }
 
-        val toClient = JanusMessage.create(JanusMessage.Hello.typeCode) as JanusMessage.Hello
-        toClient.protocolVersions += JanusMessage.PROTOCOL_VERSION
+        val toClient = JaniceMessage.create(JaniceMessage.Hello.typeCode) as JaniceMessage.Hello
+        toClient.protocolVersions += JaniceMessage.PROTOCOL_VERSION
         send(toClient)
 
-        val finalMsg = recvMessage(JanusMessage.Hello.typeCode) as JanusMessage.Hello
-        if (finalMsg.protocolVersions.firstOrNull() != JanusMessage.PROTOCOL_VERSION) {
+        val finalMsg = recvMessage(JaniceMessage.Hello.typeCode) as JaniceMessage.Hello
+        if (finalMsg.protocolVersions.firstOrNull() != JaniceMessage.PROTOCOL_VERSION) {
             throw Exception("Wrong protocol version: ${finalMsg.protocolVersions.firstOrNull()}")
         }
-        Logger.success("Server mode Hello: Using protocol version: ${JanusMessage.PROTOCOL_VERSION}")
+        Logger.success("Server mode Hello: Using protocol version: ${JaniceMessage.PROTOCOL_VERSION}")
 
-        JanusMessage.recycle(fromClient, toClient, finalMsg)
+        JaniceMessage.recycle(fromClient, toClient, finalMsg)
     }
     protected suspend fun clientModeHello() {
         Logger.info("Running client mode Hello.")
-        val toServer = JanusMessage.create(JanusMessage.Hello.typeCode) as JanusMessage.Hello
-        toServer.protocolVersions += JanusMessage.PROTOCOL_VERSION
+        val toServer = JaniceMessage.create(JaniceMessage.Hello.typeCode) as JaniceMessage.Hello
+        toServer.protocolVersions += JaniceMessage.PROTOCOL_VERSION
         send(toServer)
 
-        val fromServer = recvMessage(JanusMessage.Hello.typeCode) as JanusMessage.Hello
-        if (fromServer.protocolVersions.firstOrNull() != JanusMessage.PROTOCOL_VERSION) {
+        val fromServer = recvMessage(JaniceMessage.Hello.typeCode) as JaniceMessage.Hello
+        if (fromServer.protocolVersions.firstOrNull() != JaniceMessage.PROTOCOL_VERSION) {
             throw Exception("Wrong protocol version: ${fromServer.protocolVersions.firstOrNull()}")
         }
 
         send(toServer)
-        Logger.success("Client mode Hello: Using protocol version: ${JanusMessage.PROTOCOL_VERSION}")
+        Logger.success("Client mode Hello: Using protocol version: ${JaniceMessage.PROTOCOL_VERSION}")
 
-        JanusMessage.recycle(toServer, fromServer)
+        JaniceMessage.recycle(toServer, fromServer)
     }
     suspend fun hello(mode: Role) {
         when (mode) {
@@ -162,7 +162,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
     @OptIn(ExperimentalUuidApi::class)
     protected suspend fun serverModeAuth(workspaces: Map<String, Config.WorkspaceConfig>): Config.WorkspaceConfig {
-        val fromClient1 = recvMessage(JanusMessage.Auth.typeCode) as JanusMessage.Auth
+        val fromClient1 = recvMessage(JaniceMessage.Auth.typeCode) as JaniceMessage.Auth
         val wsName = String(fromClient1.challenge, StandardCharsets.UTF_8)
 
         val workspace = workspaces[wsName]
@@ -173,10 +173,10 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         val challenge = Uuid.random().toHexString() + Random.nextLong()
         val challengeBytes = challenge.toByteArray(StandardCharsets.UTF_8)
-        val toClient = JanusMessage.create(JanusMessage.Auth.typeCode) as JanusMessage.Auth
+        val toClient = JaniceMessage.create(JaniceMessage.Auth.typeCode) as JaniceMessage.Auth
         toClient.challenge = challengeBytes
         send(toClient)
-        val fromClient2 = recvMessage(JanusMessage.Auth.typeCode) as JanusMessage.Auth
+        val fromClient2 = recvMessage(JaniceMessage.Auth.typeCode) as JaniceMessage.Auth
 
         val success = if (workspace != null) {
             val authResult = (aes?.decrypt(fromClient2.challenge) ?: fromClient2.challenge).contentEquals(challengeBytes)
@@ -197,7 +197,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
             throw Exception("Failed on auth")
         }
 
-        JanusMessage.recycle(toClient, fromClient2, fromClient1)
+        JaniceMessage.recycle(toClient, fromClient2, fromClient1)
         return workspace
     }
 
@@ -207,14 +207,14 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         // Auth : step 1
 
-        val toSvr = JanusMessage.create(JanusMessage.Auth.typeCode) as JanusMessage.Auth
+        val toSvr = JaniceMessage.create(JaniceMessage.Auth.typeCode) as JaniceMessage.Auth
         toSvr.challenge = wsName.toByteArray(StandardCharsets.UTF_8)
 
         send(toSvr)
 
         // Auth : step 2 & 3
 
-        val fromSvr = recvMessage(JanusMessage.Auth.typeCode) as JanusMessage.Auth
+        val fromSvr = recvMessage(JaniceMessage.Auth.typeCode) as JaniceMessage.Auth
         val encrypted = aes?.encrypt(fromSvr.challenge) ?: fromSvr.challenge
 
         toSvr.reset()
@@ -225,7 +225,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         val response = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on auth")
 
-        JanusMessage.recycle(fromSvr, toSvr, response)
+        JaniceMessage.recycle(fromSvr, toSvr, response)
     }
 
     /**
@@ -250,7 +250,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
 
     suspend fun fetchFileTree(root: Path? = null): FileTree {
-        val req = JanusMessage.create(JanusMessage.FetchFileTree.typeCode) as JanusMessage.FetchFileTree
+        val req = JaniceMessage.create(JaniceMessage.FetchFileTree.typeCode) as JaniceMessage.FetchFileTree
         send(req)
         val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on fetch file tree")
         return if (root != null) {
@@ -263,7 +263,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
 
     suspend fun getSystemTimeMillis(): Long {
-        val req = JanusMessage.create(JanusMessage.GetSystemTimeMillis.typeCode) as JanusMessage.GetSystemTimeMillis
+        val req = JaniceMessage.create(JaniceMessage.GetSystemTimeMillis.typeCode) as JaniceMessage.GetSystemTimeMillis
         send(req)
         val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on get system time millis")
 
@@ -275,19 +275,19 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
 
     suspend fun commitSyncPlan(syncPlans: List<SyncPlan>) {
-        val req = JanusMessage.create(JanusMessage.CommitSyncPlan.typeCode) as JanusMessage.CommitSyncPlan
+        val req = JaniceMessage.create(JaniceMessage.CommitSyncPlan.typeCode) as JaniceMessage.CommitSyncPlan
         req.syncPlansBytes = syncPlans.map { it.encodeToByteArray() }
         send(req)
 
         val res = recvResponse(throwOnFail = true, throwOnFailPrompt = "Failed on commit sync plan")
-        JanusMessage.recycle(req, res)
+        JaniceMessage.recycle(req, res)
     }
 
 
     private suspend fun sendFile(file: MemoryMappedFile) {
         val timeBeginMillis = System.currentTimeMillis()
 
-        val dataBlockReq = JanusMessage.create(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
+        val dataBlockReq = JaniceMessage.create(JaniceMessage.DataBlock.typeCode) as JaniceMessage.DataBlock
 
         file.readPos = 0
         var remaining = file.size
@@ -308,7 +308,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
             send(dataBlockReq)
         }
 
-        JanusMessage.recycle(dataBlockReq)
+        JaniceMessage.recycle(dataBlockReq)
 
         val timeEndMillis = System.currentTimeMillis()
         var timeCostMillis = timeEndMillis - timeBeginMillis
@@ -337,7 +337,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
             throw Exception("File path is not in workspace: $realPath")
 
         val seqId = nextSeqId++
-        val uploadFileReq = JanusMessage.create(JanusMessage.UploadFile.typeCode) as JanusMessage.UploadFile
+        val uploadFileReq = JaniceMessage.create(JaniceMessage.UploadFile.typeCode) as JaniceMessage.UploadFile
         uploadFileReq.path = filePath
         uploadFileReq.fileSize = Files.size(realPathAbs)
         uploadFileReq.permBits = realPath.getPermissionMask()
@@ -346,7 +346,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         send(uploadFileReq)
 
-        JanusMessage.recycle(uploadFileReq)
+        JaniceMessage.recycle(uploadFileReq)
 
         MemoryMappedFile.openAndMap(realPathAbs, FileChannel.MapMode.READ_ONLY).use { sendFile(it) }
 
@@ -360,7 +360,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         if (response.data.size != Long.SIZE_BYTES || ByteBuffer.wrap(response.data).getLong() != seqId) {
             throw Exception("Server failed to process file: $realPathAbs. Wrong seqId.")
         }
-        JanusMessage.recycle(response)
+        JaniceMessage.recycle(response)
         return seqId
     }
 
@@ -371,14 +371,14 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         val archiveSize = byteBuffer.remaining().toLong()
         val DATA_BLOCK_SIZE = 2L * 1024 * 1024
 
-        val uploadArchiveReq = JanusMessage.create(JanusMessage.UploadArchive.typeCode) as JanusMessage.UploadArchive
+        val uploadArchiveReq = JaniceMessage.create(JaniceMessage.UploadArchive.typeCode) as JaniceMessage.UploadArchive
         uploadArchiveReq.archiveSize = byteBuffer.remaining().toLong()
         val seqId = nextSeqId++
         uploadArchiveReq.seqId = seqId
         send(uploadArchiveReq)
 
         var sharedByteArray = byteArrayOf()
-        val dataBlockReq = JanusMessage.create(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
+        val dataBlockReq = JaniceMessage.create(JaniceMessage.DataBlock.typeCode) as JaniceMessage.DataBlock
 
         while (byteBuffer.remaining() > 0) {
             val bytesToSend = minOf(byteBuffer.remaining().toLong(), DATA_BLOCK_SIZE)
@@ -393,7 +393,7 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         if (!skipRecvResponse) {
             val response = recvResponse(throwOnFail = true, "Server failed to receive archive")
-            JanusMessage.recycle(dataBlockReq, uploadArchiveReq, response)
+            JaniceMessage.recycle(dataBlockReq, uploadArchiveReq, response)
         }
 
         pendingArchiveSequences += seqId
@@ -445,13 +445,13 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
         if (pendingArchiveSequences.isEmpty())
             return null
 
-        val req = JanusMessage.create(JanusMessage.ConfirmArchives.typeCode) as JanusMessage.ConfirmArchives
+        val req = JaniceMessage.create(JaniceMessage.ConfirmArchives.typeCode) as JaniceMessage.ConfirmArchives
         req.noBlock = noBlock
         send(req)
 
         val res = recvResponse(throwOnFail = true, "Server failed to confirm archives")
         val ret = decodeConfirmMessage(res.data, pendingArchiveSequences)
-        JanusMessage.recycle(req, res)
+        JaniceMessage.recycle(req, res)
         return ret
     }
 
@@ -464,23 +464,23 @@ class JanusProtocolConnection(val janusSocket: JanusSocket) : AutoCloseable {
 
         if (pendingFileSequences.isEmpty())
             return null
-        val req = JanusMessage.create(JanusMessage.ConfirmFiles.typeCode) as JanusMessage.ConfirmFiles
+        val req = JaniceMessage.create(JaniceMessage.ConfirmFiles.typeCode) as JaniceMessage.ConfirmFiles
         req.noBlock = noBlock
         send(req)
 
         val res = recvResponse(throwOnFail = true, "Server failed to confirm files")
         val ret = decodeConfirmMessage(res.data, pendingFileSequences)
-        JanusMessage.recycle(req, res)
+        JaniceMessage.recycle(req, res)
         return ret
     }
 
 
     suspend fun bye(expectResponse: Boolean) {
-        val byeMsg = JanusMessage.create(JanusMessage.Bye.typeCode) as JanusMessage.Bye
+        val byeMsg = JaniceMessage.create(JaniceMessage.Bye.typeCode) as JaniceMessage.Bye
         send(byeMsg)
         Logger.success("Waved goodbye.")
-        JanusMessage.recycle(byeMsg)
+        JaniceMessage.recycle(byeMsg)
         if (expectResponse)
-            JanusMessage.recycle(recvMessage(requiredMsgType = JanusMessage.Bye.typeCode))
+            JaniceMessage.recycle(recvMessage(requiredMsgType = JaniceMessage.Bye.typeCode))
     }
 }

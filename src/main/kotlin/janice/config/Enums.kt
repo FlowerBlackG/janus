@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.config
+package io.github.flowerblackg.janice.config
 
-import io.github.flowerblackg.janus.config.AppConfig.CaseInsensitiveEnumSerializer
+import io.github.flowerblackg.janice.config.AppConfig.CaseInsensitiveEnumSerializer
 import kotlinx.serialization.Serializable
 
 

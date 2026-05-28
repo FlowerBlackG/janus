@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
 
-interface MessageHandler <T: JanusMessage> {
-    suspend fun handle(conn: JanusProtocolConnection, msg: T)
+interface MessageHandler <T: JaniceMessage> {
+    suspend fun handle(conn: JaniceProtocolConnection, msg: T)
 }

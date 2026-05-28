@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.config
+package io.github.flowerblackg.janice.config
 
 data class RawConfig(
     val env: MutableMap<String, String>,

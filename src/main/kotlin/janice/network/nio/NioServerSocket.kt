@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.nio
+package io.github.flowerblackg.janice.network.nio
 
-import io.github.flowerblackg.janus.network.JanusServerSocket
-import io.github.flowerblackg.janus.network.JanusSocket
+import io.github.flowerblackg.janice.network.JaniceServerSocket
+import io.github.flowerblackg.janice.network.JaniceSocket
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.SocketAddress
 import java.nio.channels.AsynchronousServerSocketChannel
@@ -14,7 +14,7 @@ import kotlin.coroutines.resumeWithException
 
 class NioServerSocket(
     protected val socketChannel: AsynchronousServerSocketChannel
-) : JanusServerSocket() {
+) : JaniceServerSocket() {
 
     companion object {
         fun open(): NioServerSocket {
@@ -29,7 +29,7 @@ class NioServerSocket(
         socketChannel.bind(localAddr)
     }
 
-    override suspend fun accept(): JanusSocket = suspendCancellableCoroutine { continuation ->
+    override suspend fun accept(): JaniceSocket = suspendCancellableCoroutine { continuation ->
         this.socketChannel.accept(null, object : CompletionHandler<AsynchronousSocketChannel, Unit> {
             override fun completed(result: AsynchronousSocketChannel, attachment: Unit?) {
                 if (continuation.isCancelled) {

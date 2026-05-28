@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.netty
+package io.github.flowerblackg.janice.network.netty
 
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.logging.Logger
 import io.netty.handler.ssl.OpenSsl
 import io.netty.handler.ssl.SslContext
 import io.netty.handler.ssl.SslContextBuilder
@@ -38,7 +38,7 @@ object NettySslUtils {
     fun generateSelfSignedCert(
         crtPath: Path? = null,
         keyPath: Path? = null,
-        subject: String = "CN=JanusSync",
+        subject: String = "CN=JaniceSync",
         validYears: Long = 1000,
         algorithm: CertificateBuilder.Algorithm = CertificateBuilder.Algorithm.ecp384
     ): X509Bundle {

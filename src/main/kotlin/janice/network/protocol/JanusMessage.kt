@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.protocol
+package io.github.flowerblackg.janice.network.protocol
 
-import io.github.flowerblackg.janus.filesystem.SyncPlan
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.filesystem.SyncPlan
+import io.github.flowerblackg.janice.logging.Logger
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
@@ -15,7 +15,7 @@ import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.system.exitProcess
 
-sealed class JanusMessage private constructor() {
+sealed class JaniceMessage private constructor() {
     /* ---------------- Begin of Companion ---------------- */
     companion object {
         const val MAGIC_STRING = "jANu"
@@ -27,15 +27,15 @@ sealed class JanusMessage private constructor() {
         /** override this. */
         const val typeCode = 0
 
-        val registry = ConcurrentHashMap<Int, MessageObjectPool<JanusMessage>>()
+        val registry = ConcurrentHashMap<Int, MessageObjectPool<JaniceMessage>>()
 
         /**
-         * Must ensure message is really Janus Protocol Message (whose magic matches).
+         * Must ensure message is really Janice Protocol Message (whose magic matches).
          * @param data Should points to the beginning of message data body.
          *             `data.limit` can be trusted.
          */
         @Throws(Exception::class)
-        fun decode(data: ByteBuffer, msgType: Int): JanusMessage {
+        fun decode(data: ByteBuffer, msgType: Int): JaniceMessage {
             init()
 
             val msg = create(msgType)
@@ -79,7 +79,7 @@ sealed class JanusMessage private constructor() {
          *             This method only consumes this message (if no exception).
          */
         @Throws(Exception::class)
-        fun decode(data: ByteBuffer): JanusMessage {
+        fun decode(data: ByteBuffer): JaniceMessage {
             init()
 
             val (type, bodyLength) = decodeHeader(data, checkMsgType = true) ?: throw Exception("Failed to decode header.")
@@ -98,13 +98,13 @@ sealed class JanusMessage private constructor() {
             return decode(bodyView, type)
         }
 
-        fun create(msgType: Int): JanusMessage {
+        fun create(msgType: Int): JaniceMessage {
             init()
             val pool = registry[msgType] ?: throw Exception("unknown message type: $msgType")
             return pool.borrow()
         }
 
-        fun recycle(vararg msgs: JanusMessage) {
+        fun recycle(vararg msgs: JaniceMessage) {
             init()
             for (msg in msgs)
                 registry[msg.type]?.recycle(msg)
@@ -148,7 +148,7 @@ sealed class JanusMessage private constructor() {
 
     /*
 
-    class Template : JanusMessage() {
+    class Template : JaniceMessage() {
         companion object {
             const val typeCode = TODO()
         }
@@ -173,7 +173,7 @@ sealed class JanusMessage private constructor() {
      */
 
 
-    class CommonResponse : JanusMessage() {
+    class CommonResponse : JaniceMessage() {
         companion object {
             const val typeCode = 0xA001
         }
@@ -241,7 +241,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class DataBlock : JanusMessage() {
+    class DataBlock : JaniceMessage() {
         companion object {
             const val typeCode = 0xA002
         }
@@ -272,7 +272,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class Hello : JanusMessage() {
+    class Hello : JaniceMessage() {
         companion object {
             const val typeCode = 0x1000
         }
@@ -299,7 +299,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class Auth : JanusMessage() {
+    class Auth : JaniceMessage() {
         companion object {
             const val typeCode = 0x1001
         }
@@ -324,7 +324,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class Bye : JanusMessage() {
+    class Bye : JaniceMessage() {
         companion object {
             const val typeCode = 0x1002
         }
@@ -334,7 +334,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class GetSystemTimeMillis : JanusMessage() {
+    class GetSystemTimeMillis : JaniceMessage() {
         companion object {
             const val typeCode = 0x1801
         }
@@ -344,7 +344,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class FetchFileTree : JanusMessage() {
+    class FetchFileTree : JaniceMessage() {
         companion object {
             const val typeCode = 0x2001
         }
@@ -354,7 +354,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class CommitSyncPlan : JanusMessage() {
+    class CommitSyncPlan : JaniceMessage() {
         companion object {
             const val typeCode = 0x2002
         }
@@ -398,7 +398,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class UploadFile : JanusMessage() {
+    class UploadFile : JaniceMessage() {
         companion object {
             const val typeCode = 0x2003
         }
@@ -445,7 +445,7 @@ sealed class JanusMessage private constructor() {
     }
 
 
-    class UploadArchive : JanusMessage() {
+    class UploadArchive : JaniceMessage() {
         companion object {
             const val typeCode = 0x2004
         }
@@ -474,7 +474,7 @@ sealed class JanusMessage private constructor() {
 
 
 
-    class ConfirmArchives : JanusMessage() {
+    class ConfirmArchives : JaniceMessage() {
         companion object {
             const val typeCode = 0x2005
         }
@@ -499,7 +499,7 @@ sealed class JanusMessage private constructor() {
 
 
 
-    class ConfirmFiles : JanusMessage() {
+    class ConfirmFiles : JaniceMessage() {
         companion object {
             const val typeCode = 0x2006
         }
@@ -525,33 +525,33 @@ sealed class JanusMessage private constructor() {
 
 
 private var initialized = false
-private fun registerMsgType(msgType: Int, creator: () -> JanusMessage) {
-    if (JanusMessage.registry[msgType] != null) {
+private fun registerMsgType(msgType: Int, creator: () -> JaniceMessage) {
+    if (JaniceMessage.registry[msgType] != null) {
         Logger.error("CRITICAL!!! Duplicated message type: 0x${msgType.toHexString()}.", trace = Throwable())
         exitProcess(-1)  // This should be something like static assert.
     }
 
-    JanusMessage.registry[msgType] = MessageObjectPool(creator)
+    JaniceMessage.registry[msgType] = MessageObjectPool(creator)
 }
 
 private fun registerMsgTypes() {
     // Add a line for each message struct.
-    registerMsgType(JanusMessage.CommonResponse.typeCode) { JanusMessage.CommonResponse() }
-    registerMsgType(JanusMessage.DataBlock.typeCode) { JanusMessage.DataBlock() }
-    registerMsgType(JanusMessage.Hello.typeCode) { JanusMessage.Hello() }
-    registerMsgType(JanusMessage.Auth.typeCode) { JanusMessage.Auth() }
-    registerMsgType(JanusMessage.Bye.typeCode) { JanusMessage.Bye() }
-    registerMsgType(JanusMessage.GetSystemTimeMillis.typeCode) { JanusMessage.GetSystemTimeMillis() }
-    registerMsgType(JanusMessage.FetchFileTree.typeCode) { JanusMessage.FetchFileTree() }
-    registerMsgType(JanusMessage.CommitSyncPlan.typeCode) { JanusMessage.CommitSyncPlan() }
-    registerMsgType(JanusMessage.UploadFile.typeCode) { JanusMessage.UploadFile() }
-    registerMsgType(JanusMessage.UploadArchive.typeCode) { JanusMessage.UploadArchive() }
-    registerMsgType(JanusMessage.ConfirmArchives.typeCode) { JanusMessage.ConfirmArchives() }
-    registerMsgType(JanusMessage.ConfirmFiles.typeCode) { JanusMessage.ConfirmFiles() }
+    registerMsgType(JaniceMessage.CommonResponse.typeCode) { JaniceMessage.CommonResponse() }
+    registerMsgType(JaniceMessage.DataBlock.typeCode) { JaniceMessage.DataBlock() }
+    registerMsgType(JaniceMessage.Hello.typeCode) { JaniceMessage.Hello() }
+    registerMsgType(JaniceMessage.Auth.typeCode) { JaniceMessage.Auth() }
+    registerMsgType(JaniceMessage.Bye.typeCode) { JaniceMessage.Bye() }
+    registerMsgType(JaniceMessage.GetSystemTimeMillis.typeCode) { JaniceMessage.GetSystemTimeMillis() }
+    registerMsgType(JaniceMessage.FetchFileTree.typeCode) { JaniceMessage.FetchFileTree() }
+    registerMsgType(JaniceMessage.CommitSyncPlan.typeCode) { JaniceMessage.CommitSyncPlan() }
+    registerMsgType(JaniceMessage.UploadFile.typeCode) { JaniceMessage.UploadFile() }
+    registerMsgType(JaniceMessage.UploadArchive.typeCode) { JaniceMessage.UploadArchive() }
+    registerMsgType(JaniceMessage.ConfirmArchives.typeCode) { JaniceMessage.ConfirmArchives() }
+    registerMsgType(JaniceMessage.ConfirmFiles.typeCode) { JaniceMessage.ConfirmFiles() }
 }
 
 private fun checkAllMsgTypesRegistered() {
-    val msgClasses = JanusMessage::class.sealedSubclasses
+    val msgClasses = JaniceMessage::class.sealedSubclasses
     for (kClass in msgClasses) {
         val companion = kClass.companionObject
         val companionInstance = kClass.companionObjectInstance
@@ -561,7 +561,7 @@ private fun checkAllMsgTypesRegistered() {
             exitProcess(-1)
         }
 
-        val typeCodeProp = companion.declaredMemberProperties.find { it.name == JanusMessage::typeCode.name } ?: run {
+        val typeCodeProp = companion.declaredMemberProperties.find { it.name == JaniceMessage::typeCode.name } ?: run {
             Logger.error("CRITICAL!!! Failed to get typeCode property for $kClass", trace = Throwable())
             exitProcess(-1)
         }
@@ -571,7 +571,7 @@ private fun checkAllMsgTypesRegistered() {
             exitProcess(-1)
         }
 
-        JanusMessage.registry[typeCode] ?: run {
+        JaniceMessage.registry[typeCode] ?: run {
             Logger.error("CRITICAL!!! $kClass not registered.", trace = Throwable())
             exitProcess(-1)
         }

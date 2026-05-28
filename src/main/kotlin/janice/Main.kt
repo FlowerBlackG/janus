@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus
+package io.github.flowerblackg.janice
 
 
-import io.github.flowerblackg.janus.client.runClient
-import io.github.flowerblackg.janus.config.*
-import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.miniprograms.generateSslKeys
-import io.github.flowerblackg.janus.miniprograms.usage
-import io.github.flowerblackg.janus.server.runServer
+import io.github.flowerblackg.janice.client.runClient
+import io.github.flowerblackg.janice.config.*
+import io.github.flowerblackg.janice.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.miniprograms.generateSslKeys
+import io.github.flowerblackg.janice.miniprograms.usage
+import io.github.flowerblackg.janice.server.runServer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import java.time.OffsetDateTime
@@ -26,7 +26,7 @@ private fun isoTimeToHumanReadable(isoTime: String): String {
 
 
 private fun version() {
-    Logger.info("janus ${Version.name}")
+    Logger.info("janice ${Version.name}")
     Logger.info("> built on ${isoTimeToHumanReadable(Version.time)}")
 }
 

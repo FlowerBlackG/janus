@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.coroutine
+package io.github.flowerblackg.janice.coroutine
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -10,7 +10,7 @@ import kotlinx.coroutines.runBlocking
 
 
 /**
- * In Janus, we should never use kotlin's global coroutine scopes and global dispatchers directly.
+ * In Janice, we should never use kotlin's global coroutine scopes and global dispatchers directly.
  *
  * We should always create coroutine tasks in scopes provided by [GlobalCoroutineScopes].
  *

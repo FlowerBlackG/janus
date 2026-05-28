@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.filesystem.FileTree
-import io.github.flowerblackg.janus.filesystem.globFilesRelative
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.filesystem.FileTree
+import io.github.flowerblackg.janice.filesystem.globFilesRelative
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
 import kotlin.time.measureTime
 
-class FetchFileTreeHandler(val workspace: Config.WorkspaceConfig) : MessageHandler<JanusMessage.FetchFileTree> {
-    override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage.FetchFileTree) {
+class FetchFileTreeHandler(val workspace: Config.WorkspaceConfig) : MessageHandler<JaniceMessage.FetchFileTree> {
+    override suspend fun handle(conn: JaniceProtocolConnection, msg: JaniceMessage.FetchFileTree) {
         val fileTree: FileTree
         val globDuration = measureTime {
             fileTree = workspace.path.globFilesRelative(workspace.filter.ignore) ?: throw Exception("Failed to fetch file tree.")

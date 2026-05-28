@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
-import io.github.flowerblackg.janus.server.ArchiveExtractorPool
+import io.github.flowerblackg.janice.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
+import io.github.flowerblackg.janice.server.ArchiveExtractorPool
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
-class UploadArchiveHandler(val extractorPool: ArchiveExtractorPool) : MessageHandler<JanusMessage.UploadArchive> {
+class UploadArchiveHandler(val extractorPool: ArchiveExtractorPool) : MessageHandler<JaniceMessage.UploadArchive> {
 
 
     /**
      * Co-engined with Google Gemini 3.0 Pro.
      */
     override suspend fun handle(
-        conn: JanusProtocolConnection,
-        msg: JanusMessage.UploadArchive
+        conn: JaniceProtocolConnection,
+        msg: JaniceMessage.UploadArchive
     ) {
         Logger.info("Archive processing started. Total Size: ${msg.archiveSize / 1024 / 1024}MB")
 
@@ -28,7 +28,7 @@ class UploadArchiveHandler(val extractorPool: ArchiveExtractorPool) : MessageHan
             try {
                 var receivedBytes = 0L
                 while (receivedBytes < msg.archiveSize) {
-                    val block = conn.recvMessage(JanusMessage.DataBlock.typeCode) as JanusMessage.DataBlock
+                    val block = conn.recvMessage(JaniceMessage.DataBlock.typeCode) as JaniceMessage.DataBlock
                     dataChannel.send(block.dataBlock)
                     receivedBytes += block.dataBlock.size
                 }

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server
+package io.github.flowerblackg.janice.server
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
-import io.github.flowerblackg.janus.filesystem.MemoryMappedFile
-import io.github.flowerblackg.janus.filesystem.FSUtils
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janice.filesystem.MemoryMappedFile
+import io.github.flowerblackg.janice.filesystem.FSUtils
+import io.github.flowerblackg.janice.logging.Logger
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -55,7 +55,7 @@ class ArchiveExtractorPool {
             // Ensure directory structure exists
             Files.createDirectories(outFile.parent)
 
-            val tmpPath = outFile.resolveSibling("${outFile.name}.janus-sync-tmp")
+            val tmpPath = outFile.resolveSibling("${outFile.name}.janice-sync-tmp")
 
             // Memory-Mapped Writing
             // MemoryMappedFile handles the mapping and truncate operations.

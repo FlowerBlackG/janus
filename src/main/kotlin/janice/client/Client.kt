@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.client
+package io.github.flowerblackg.janice.client
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
-import io.github.flowerblackg.janus.filesystem.FileTree
-import io.github.flowerblackg.janus.filesystem.FileType
-import io.github.flowerblackg.janus.filesystem.SyncPlan
-import io.github.flowerblackg.janus.filesystem.globFilesRelative
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.netty.NettySocket
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection.Role
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janice.filesystem.FileTree
+import io.github.flowerblackg.janice.filesystem.FileType
+import io.github.flowerblackg.janice.filesystem.SyncPlan
+import io.github.flowerblackg.janice.filesystem.globFilesRelative
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.netty.NettySocket
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection.Role
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -38,12 +38,12 @@ private fun sumFilesSize(plans: Collection<SyncPlan>): Long {
 }
 
 
-private suspend fun uploadArchive(conn: JanusProtocolConnection, byteBuf: ByteBuffer, skipRecvResponse: Boolean) {
+private suspend fun uploadArchive(conn: JaniceProtocolConnection, byteBuf: ByteBuffer, skipRecvResponse: Boolean) {
     conn.uploadArchive(byteBuf, skipRecvResponse = skipRecvResponse)
 }
 
 
-private suspend fun confirmAllArchives(conn: JanusProtocolConnection) {
+private suspend fun confirmAllArchives(conn: JaniceProtocolConnection) {
     while (true) {
         val confirmResult = conn.confirmArchives(noBlock = false)
         if (confirmResult == null) {
@@ -61,7 +61,7 @@ private suspend fun confirmAllArchives(conn: JanusProtocolConnection) {
 }
 
 
-private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config.WorkspaceConfig, plan: SyncPlan) {
+private suspend fun uploadFiles(conn: JaniceProtocolConnection, workspace: Config.WorkspaceConfig, plan: SyncPlan) {
     val uploadFileSeqIdChannel = Channel<Long?>()
     val uploadFileACKsReceiver = UploadFileResponseReceiver(conn = conn, seqIdChannel = uploadFileSeqIdChannel)
 
@@ -128,7 +128,7 @@ private suspend fun uploadFiles(conn: JanusProtocolConnection, workspace: Config
 }
 
 
-private suspend fun getSvrToLocalTimeDiffMillis(conn: JanusProtocolConnection): Long {
+private suspend fun getSvrToLocalTimeDiffMillis(conn: JaniceProtocolConnection): Long {
     val localTimeMillis = System.currentTimeMillis()
     val serverTimeMillis = conn.getSystemTimeMillis()
     val networkRoundtripMillis = System.currentTimeMillis() - localTimeMillis
@@ -138,7 +138,7 @@ private suspend fun getSvrToLocalTimeDiffMillis(conn: JanusProtocolConnection): 
 }
 
 
-private suspend fun getLocalAndRemoteFileTrees(conn: JanusProtocolConnection, workspace: Config.WorkspaceConfig): Pair<FileTree, FileTree> {
+private suspend fun getLocalAndRemoteFileTrees(conn: JaniceProtocolConnection, workspace: Config.WorkspaceConfig): Pair<FileTree, FileTree> {
     val serverFileTreePromise = GlobalCoroutineScopes.IO.async { conn.fetchFileTree(workspace.path) }
     val localFileTreePromise = GlobalCoroutineScopes.IO.async {
         workspace.path.globFilesRelative(workspace.filter.ignore)
@@ -185,7 +185,7 @@ suspend fun runClient(config: Config): Int {
 
     val allFilesSizePromise: Deferred<Long>
 
-    JanusProtocolConnection(sock).use { conn ->
+    JaniceProtocolConnection(sock).use { conn ->
         runCatching {
             conn.hello(Role.CLIENT)
             conn.auth(workspace = workspace)

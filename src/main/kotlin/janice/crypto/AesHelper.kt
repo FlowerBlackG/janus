@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.crypto
+package io.github.flowerblackg.janice.crypto
 
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.logging.Logger
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec

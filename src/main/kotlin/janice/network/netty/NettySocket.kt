@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.netty
+package io.github.flowerblackg.janice.network.netty
 
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.JanusSocket
-import io.github.flowerblackg.janus.network.protocol.protocolDebugger
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.JaniceSocket
+import io.github.flowerblackg.janice.network.protocol.protocolDebugger
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
@@ -31,7 +31,7 @@ import kotlin.time.Duration
 class NettySocket(
     protected var channel: SocketChannel? = null,
     protected val sslContext: SslContext? = null
-) : JanusSocket(), ChannelInboundHandler {
+) : JaniceSocket(), ChannelInboundHandler {
 
     // Mostly implemented by Google Gemini 3.0 Pro.
 
@@ -179,7 +179,7 @@ class NettySocket(
         val p = ch.pipeline()
         if (sslContext != null)
             p.addFirst("ssl", sslContext.newHandler(ch.alloc()))
-        p.addLast("janusHandler", this)
+        p.addLast("janiceHandler", this)
     }
 
     @OptIn(ExperimentalAtomicApi::class)

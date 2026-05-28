@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.client
+package io.github.flowerblackg.janice.client
 
-import io.github.flowerblackg.janus.coroutine.GlobalCoroutineScopes
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janice.coroutine.GlobalCoroutineScopes
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 
 /**
- * Once new instance created, a loop inside will start receiving seqIds and receive corresponding responses from Janus Connection immediately.
+ * Once new instance created, a loop inside will start receiving seqIds and receive corresponding responses from Janice Connection immediately.
  *
- * The receiver loop will try receives response as ACK for [JanusMessage.UploadFile].
+ * The receiver loop will try receives response as ACK for [JaniceMessage.UploadFile].
  *
  * This receiver is used when sending lots of files continuously and want to wait response while sending another file simultaneously.
  */
 class UploadFileResponseReceiver(
-    val conn: JanusProtocolConnection,
+    val conn: JaniceProtocolConnection,
     /**
      * Since you might send archives between files,
      * you can pass a `null` to the channel,

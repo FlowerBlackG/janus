@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.miniprograms
+package io.github.flowerblackg.janice.miniprograms
 
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.logging.Logger
 
 
 fun usage(error: String? = null) {
     if (error != null) {
         Logger.error(error)
     }
-    Logger.info("Usage: janus [options]")
+    Logger.info("Usage: janice [options]")
     Logger.info("")
 
     Logger.info("Modes:")
@@ -36,10 +36,10 @@ fun usage(error: String? = null) {
     Logger.info("")
 
     Logger.info("Subprograms:")
-    Logger.info("  --version              Show Janus version and exit")
+    Logger.info("  --version              Show Janice version and exit")
     Logger.info("  --help, --usage        Show this help message")
     Logger.info("  --generate-ssl-keys    Generate ECP384 keys and save to SSL paths")
     Logger.info("")
 
-    Logger.info("Read more at https://github.com/FlowerBlackG/janus")
+    Logger.info("Read more at https://github.com/FlowerBlackG/janice")
 }

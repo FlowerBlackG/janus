@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.config.Config
-import io.github.flowerblackg.janus.filesystem.FSUtils
-import io.github.flowerblackg.janus.filesystem.FileType
-import io.github.flowerblackg.janus.filesystem.SyncPlan
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
+import io.github.flowerblackg.janice.config.Config
+import io.github.flowerblackg.janice.filesystem.FSUtils
+import io.github.flowerblackg.janice.filesystem.FileType
+import io.github.flowerblackg.janice.filesystem.SyncPlan
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -61,7 +61,7 @@ private data class DoubleBufferedPlanList(
 }
 
 
-class CommitSyncPlanHandler(val workspace: Config.WorkspaceConfig) : MessageHandler<JanusMessage.CommitSyncPlan> {
+class CommitSyncPlanHandler(val workspace: Config.WorkspaceConfig) : MessageHandler<JaniceMessage.CommitSyncPlan> {
     private fun ensurePathExists(fileType: FileType, path: Path) {
         val absPath = path.toAbsolutePath().normalize()
         if (!absPath.startsWith(workspace.path.toAbsolutePath().normalize())) {
@@ -128,7 +128,7 @@ class CommitSyncPlanHandler(val workspace: Config.WorkspaceConfig) : MessageHand
     }
 
 
-    override suspend fun handle(conn: JanusProtocolConnection, msg: JanusMessage.CommitSyncPlan) {
+    override suspend fun handle(conn: JaniceProtocolConnection, msg: JaniceMessage.CommitSyncPlan) {
         val syncPlans = msg.syncPlansBytes.map { SyncPlan.from(it, workspace.path) }
 
         val planHolder = DoubleBufferedPlanList()

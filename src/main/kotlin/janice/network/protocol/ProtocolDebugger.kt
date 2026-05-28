@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.protocol
+package io.github.flowerblackg.janice.network.protocol
 
-import io.github.flowerblackg.janus.logging.Logger
+import io.github.flowerblackg.janice.logging.Logger
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
@@ -89,12 +89,12 @@ object protocolDebugger {
 
 private fun ByteBuffer.tryDecodeHeader(): String? {
     val b = this.duplicate()
-    if (b.remaining() < JanusMessage.HEADER_LENGTH)
+    if (b.remaining() < JaniceMessage.HEADER_LENGTH)
         return null
-    val magicBytes = ByteArray(JanusMessage.MAGIC_STRING.length)
+    val magicBytes = ByteArray(JaniceMessage.MAGIC_STRING.length)
     b.get(magicBytes)
     val magic = String(magicBytes, StandardCharsets.US_ASCII)
-    if (magic != JanusMessage.MAGIC_STRING)
+    if (magic != JaniceMessage.MAGIC_STRING)
         return null
 
     val type = b.getInt()
@@ -102,14 +102,14 @@ private fun ByteBuffer.tryDecodeHeader(): String? {
 
     var typeStr = "Unknown"
 
-    for (kClass in JanusMessage::class.sealedSubclasses) {
+    for (kClass in JaniceMessage::class.sealedSubclasses) {
         val companion = kClass.companionObject
         val companionInstance = kClass.companionObjectInstance
 
         if (companion == null || companionInstance == null)
             continue
 
-        val typeCodeProp = companion.declaredMemberProperties.find { it.name == JanusMessage::typeCode.name }
+        val typeCodeProp = companion.declaredMemberProperties.find { it.name == JaniceMessage::typeCode.name }
         typeCodeProp ?: continue
 
         val typeCode = typeCodeProp.getter.call(companionInstance) as? Int ?: continue

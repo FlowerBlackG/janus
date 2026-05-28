@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network.nio
+package io.github.flowerblackg.janice.network.nio
 
-import io.github.flowerblackg.janus.network.JanusSocket
-import io.github.flowerblackg.janus.network.protocol.protocolDebugger
+import io.github.flowerblackg.janice.network.JaniceSocket
+import io.github.flowerblackg.janice.network.protocol.protocolDebugger
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.SocketAddress
 import java.nio.ByteBuffer
@@ -16,7 +16,7 @@ import kotlin.time.Duration
 
 class NioSocket(
     protected val socketChannel: AsynchronousSocketChannel
-) : JanusSocket() {
+) : JaniceSocket() {
     companion object {
         fun open(): NioSocket {
             return AsynchronousSocketChannel.open().toNioSocket()

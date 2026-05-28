@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 /* From SUFE GuoTuanTuan Project. */
 
-package io.github.flowerblackg.janus.utils
+package io.github.flowerblackg.janice.utils
 
 import org.json.JSONObject
 

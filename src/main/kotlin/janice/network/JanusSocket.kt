@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.network
+package io.github.flowerblackg.janice.network
 
-import io.github.flowerblackg.janus.logging.Logger
-import io.github.flowerblackg.janus.network.protocol.protocolDebugger
+import io.github.flowerblackg.janice.logging.Logger
+import io.github.flowerblackg.janice.network.protocol.protocolDebugger
 import java.io.EOFException
 import java.net.SocketAddress
 import java.nio.ByteBuffer
 import kotlin.time.Duration
 
-abstract class JanusSocket : AutoCloseable {
+abstract class JaniceSocket : AutoCloseable {
     abstract val remoteAddress: SocketAddress?
 
     abstract fun connect(remoteAddr: SocketAddress)

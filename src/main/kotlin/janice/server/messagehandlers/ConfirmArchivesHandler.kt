@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
 
-package io.github.flowerblackg.janus.server.messagehandlers
+package io.github.flowerblackg.janice.server.messagehandlers
 
-import io.github.flowerblackg.janus.network.protocol.JanusMessage
-import io.github.flowerblackg.janus.network.protocol.JanusProtocolConnection
-import io.github.flowerblackg.janus.server.ArchiveExtractorPool
+import io.github.flowerblackg.janice.network.protocol.JaniceMessage
+import io.github.flowerblackg.janice.network.protocol.JaniceProtocolConnection
+import io.github.flowerblackg.janice.server.ArchiveExtractorPool
 import java.nio.ByteBuffer
 
-class ConfirmArchivesHandler(val extractorPool: ArchiveExtractorPool) : MessageHandler<JanusMessage.ConfirmArchives> {
+class ConfirmArchivesHandler(val extractorPool: ArchiveExtractorPool) : MessageHandler<JaniceMessage.ConfirmArchives> {
     override suspend fun handle(
-        conn: JanusProtocolConnection,
-        msg: JanusMessage.ConfirmArchives
+        conn: JaniceProtocolConnection,
+        msg: JaniceMessage.ConfirmArchives
     ) {
         val results = extractorPool.checkExtractedArchives()
 

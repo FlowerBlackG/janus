@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MulanPSL-2.0
 
-package io.github.flowerblackg.janus.logging
+package io.github.flowerblackg.janice.logging
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 
 /**
- * Logger for janus.
+ * Logger for janice.
  *
  * Logging by simply calling like: Logger.info("message")
  */
